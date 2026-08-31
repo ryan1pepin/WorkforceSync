@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="WorkforceSync.Api/WorkforceSync.Api.csproj" />
+  <Project Path="WorkforceSync.Core.Tests/WorkforceSync.Core.Tests.csproj" />
+  <Project Path="WorkforceSync.Core/WorkforceSync.Core.csproj" />
+  <Project Path="WorkforceSync.HcmSource/WorkforceSync.HcmSource.csproj" />
+</Solution>
