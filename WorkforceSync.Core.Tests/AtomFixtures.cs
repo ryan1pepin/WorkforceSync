@@ -110,7 +110,7 @@ internal static class AtomFixtures
         JobTitle: null,
         Department: null,
         StartDate: null,
-        EndDate: new DateTime(2026, 9, 2, 0, 0, 0, DateTimeKind.Utc),
+        EndDate: new DateTime(2026, 9, 5, 0, 0, 0, DateTimeKind.Utc),
         BaseSalary: null,
         Currency: null);
 

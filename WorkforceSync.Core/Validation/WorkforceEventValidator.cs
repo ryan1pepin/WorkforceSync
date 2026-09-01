@@ -91,12 +91,10 @@ public sealed class WorkforceEventValidator
 
     private static void ValidateTermination(WorkforceEvent evt, List<string> errors)
     {
-        // A termination is a past/present event: its effective end date should not be
-        // after the moment the event was recorded.
-        if (evt.EndDate is not null && evt.EndDate > evt.OccurredAt)
+        if (evt.EndDate is not null && evt.EndDate < evt.OccurredAt)
         {
             errors.Add(
-                $"EndDate ({evt.EndDate:u}) is after OccurredAt ({evt.OccurredAt:u}).");
+                $"EndDate ({evt.EndDate:u}) must be on or after OccurredAt ({evt.OccurredAt:u}).");
         }
     }
 

@@ -33,7 +33,7 @@ public class WorkforceEventTransformerTests
         var terminated = _transformer.Apply(AtomFixtures.ValidTermination, hired);
 
         Assert.False(terminated.IsActive);
-        Assert.Equal(new DateTime(2026, 9, 2, 0, 0, 0, DateTimeKind.Utc), terminated.TerminationDate);
+        Assert.Equal(new DateTime(2026, 9, 5, 0, 0, 0, DateTimeKind.Utc), terminated.TerminationDate);
         // Other fields preserved
         Assert.Equal("Ada", terminated.FirstName);
         Assert.Equal("pos-1", terminated.PositionId);

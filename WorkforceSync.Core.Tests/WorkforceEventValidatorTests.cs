@@ -61,11 +61,11 @@ public class WorkforceEventValidatorTests
     }
 
     [Fact]
-    public void Validate_Termination_EndDateAfterOccurred_ReturnsError()
+    public void Validate_Termination_EndDateBeforeOccurred_ReturnsError()
     {
         var bad = AtomFixtures.ValidTermination with
         {
-            EndDate = new DateTime(2026, 9, 3, 0, 0, 0, DateTimeKind.Utc), // after OccurredAt (9/2)
+            EndDate = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc), // before OccurredAt (9/2)
         };
 
         var errors = _validator.Validate(bad);
