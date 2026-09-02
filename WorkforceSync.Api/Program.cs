@@ -5,6 +5,7 @@ using Microsoft.IdentityModel.Tokens;
 using WorkforceSync.Api.Auth;
 using WorkforceSync.Api.Data;
 using WorkforceSync.Api.Services;
+using WorkforceSync.HcmSource;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +43,19 @@ builder.Services.AddAuthorization();
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddSingleton<IntegrationStatus>();
+
+// --- Ingestion pipeline (M3): poll mock HCM feed → Channel<T> → processor ---
+var ingestion = builder.Configuration.GetSection("Ingestion").Get<IngestionOptions>()
+    ?? new IngestionOptions(Enabled: true, FeedUrl: "http://127.0.0.1:5199/feed", PollIntervalSeconds: 5, QueueCapacity: 1000);
+builder.Services.AddSingleton(ingestion);
+builder.Services.AddSingleton(new EventQueue(ingestion.QueueCapacity));
+builder.Services.AddHttpClient<HcmFeedClient>(client =>
+    client.BaseAddress = new Uri(ingestion.FeedUrl));
+builder.Services.AddScoped<EventProcessor>();
+if (ingestion.Enabled)
+{
+    builder.Services.AddHostedService<IngestionService>();
+}
 
 // --- MVC + JSON ---
 builder.Services.AddControllers()
@@ -83,6 +97,24 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// --- Mock HCM feed server (dev only) ---
+HcmFeedServer? hcmServer = null;
+if (ingestion.Enabled && app.Environment.IsDevelopment())
+{
+    var scenario = new HcmScenario();
+    var feedPort = new Uri(ingestion.FeedUrl).Port;
+    try
+    {
+        hcmServer = new HcmFeedServer(feedPort, () => scenario.CurrentEvents);
+        hcmServer.Start();
+        app.Logger.LogInformation("Mock HCM feed serving at http://127.0.0.1:{Port}/feed", feedPort);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "Could not start mock HCM feed on port {Port}; ingestion will fail to poll.", feedPort);
+    }
+}
 
 // Ensure the database exists (dev convenience; use migrations in production).
 using (var scope = app.Services.CreateScope())

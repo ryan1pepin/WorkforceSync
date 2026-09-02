@@ -49,6 +49,16 @@ public class Employee
     public DateTime UpdatedAtUtc { get; set; }
 }
 
+/// <summary>
+/// Records an event id that has already been applied. Makes the pipeline
+/// idempotent: a redelivered event (poll overlap, replay) is skipped.
+/// </summary>
+public class ProcessedEvent
+{
+    public string EventId { get; set; } = null!;
+    public DateTime ProcessedAtUtc { get; set; }
+}
+
 /// <summary>A position (job slot) that employees can hold.</summary>
 public class Position
 {
@@ -81,6 +91,7 @@ public class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Employee> Employees => Set<Employee>();
+    public DbSet<ProcessedEvent> ProcessedEvents => Set<ProcessedEvent>();
     public DbSet<Position> Positions => Set<Position>();
     public DbSet<IntegrationAuditLog> IntegrationAuditLog => Set<IntegrationAuditLog>();
 
@@ -115,6 +126,12 @@ public class AppDbContext : DbContext
         {
             e.HasKey(x => x.PositionId);
             e.HasIndex(x => x.Department);
+        });
+
+        modelBuilder.Entity<ProcessedEvent>(e =>
+        {
+            e.HasKey(x => x.EventId);
+            e.HasIndex(x => x.ProcessedAtUtc);
         });
 
         modelBuilder.Entity<IntegrationAuditLog>(e =>
