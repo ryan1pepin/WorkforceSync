@@ -1,0 +1,6 @@
+{
+  "/auth": { "target": "http://localhost:5140", "secure": false, "changeOrigin": true },
+  "/employees": { "target": "http://localhost:5140", "secure": false, "changeOrigin": true },
+  "/positions": { "target": "http://localhost:5140", "secure": false, "changeOrigin": true },
+  "/integrations": { "target": "http://localhost:5140", "secure": false, "changeOrigin": true }
+}
