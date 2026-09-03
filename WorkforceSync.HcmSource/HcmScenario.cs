@@ -14,10 +14,11 @@ public sealed class HcmScenario
     private readonly object _gate = new();
 
     /// <summary>Seconds between scripted events.</summary>
-    public int StepSeconds { get; } = 15;
+    public int StepSeconds { get; }
 
-    public HcmScenario()
+    public HcmScenario(int stepSeconds = 15)
     {
+        StepSeconds = Math.Max(1, stepSeconds);
         // Seed: three hires already in the system at t=0.
         _events.Add(Hire("emp-1001", "Ada", "Lovelace", "ada@corp.example", "pos-1", "Software Engineer", "Engineering", 118000m));
         _events.Add(Hire("emp-1002", "Grace", "Hopper", "grace@corp.example", "pos-2", "Systems Analyst", "Engineering", 124000m));

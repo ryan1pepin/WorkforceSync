@@ -8,8 +8,10 @@ namespace WorkforceSync.Api.Services;
 /// <param name="FeedUrl">The mock HCM ATOM feed endpoint to poll.</param>
 /// <param name="PollIntervalSeconds">How often the feed is polled.</param>
 /// <param name="QueueCapacity">Bounded channel capacity (backpressure).</param>
+/// <param name="ScenarioStepSeconds">Seconds between scripted mock-HCM events (demo pacing).</param>
 public sealed record IngestionOptions(
     bool Enabled,
     string FeedUrl,
     int PollIntervalSeconds,
-    int QueueCapacity);
+    int QueueCapacity,
+    int ScenarioStepSeconds = 15);
