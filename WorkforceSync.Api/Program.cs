@@ -121,6 +121,21 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
+
+    // Seed a demo user so the UI is usable out of the box (dev only).
+    if (app.Environment.IsDevelopment() && !db.Users.Any())
+    {
+        db.Users.Add(new User
+        {
+            Email = "demo@corp.example",
+            FirstName = "Demo",
+            LastName = "User",
+            PasswordHash = PasswordHasher.Hash("Demo123!"),
+            CreatedAtUtc = DateTime.UtcNow,
+        });
+        db.SaveChanges();
+        app.Logger.LogInformation("Seeded demo user: demo@corp.example / Demo123!");
+    }
 }
 
 if (app.Environment.IsDevelopment())
