@@ -4,12 +4,17 @@
 > story. Run `scripts/demo.ps1` first so everything is up and the DB is fresh.
 > Keep the browser on the dashboard; have Swagger open in a second tab as backup.
 
+> **No laptop in the room?** Play `docs/WorkforceSync-Demo.mp4` on your phone —
+> a 56-second capture of the exact same flow: sign in → seeded dashboard →
+> live events landing (hires, promotion, comp change, termination) → audit log.
+> Narrate over it with the script below; the "money shot" still works.
+
 ---
 
 ## 0. Before you start (30 seconds)
 
 - `.\scripts\demo.ps1` — fresh DB, API + feed + UI all running, browser opens.
-- Register a quick account on the login screen (any email / password).
+- The login screen is **pre-filled** with the demo account (`demo@corp.example` / `Demo123!`) — just click **Sign in**.
 - Confirm the dashboard shows **3 seeded employees** and the pipeline is **Healthy**.
 - Have Swagger (`/swagger`) open in a second tab — it's your fallback if the UI hiccups.
 
