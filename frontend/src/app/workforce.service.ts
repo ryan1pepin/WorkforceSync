@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { AuditEntry, Employee, Health, PagedResult, Position } from './models';
+import { AuditEntry, Employee, EmployeeChange, Health, PagedResult, Position } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class WorkforceService {
@@ -11,6 +11,10 @@ export class WorkforceService {
     return this.http.get<PagedResult<Employee>>('/employees', {
       params: { page: String(page), pageSize: String(pageSize) },
     });
+  }
+
+  employeeChanges(employeeId: string): Observable<EmployeeChange[]> {
+    return this.http.get<EmployeeChange[]>(`/employees/${employeeId}/changes`);
   }
 
   positions(): Observable<Position[]> {

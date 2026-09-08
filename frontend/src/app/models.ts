@@ -53,6 +53,19 @@ export interface AuditEntry {
   message: string | null;
 }
 
+export interface EmployeeChangeField {
+  field: string;
+  oldValue: string | null;
+  newValue: string | null;
+}
+
+export interface EmployeeChange {
+  eventId: string;
+  atUtc: string;
+  eventType: string;
+  fields: EmployeeChangeField[];
+}
+
 export interface Health {
   status: string;
   database: boolean;

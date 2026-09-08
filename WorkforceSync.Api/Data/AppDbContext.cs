@@ -81,6 +81,23 @@ public class IntegrationAuditLog
     public string? Message { get; set; }
 }
 
+/// <summary>
+/// A per-field change to an employee, captured when an HCM event is applied.
+/// Groups by <see cref="EventId"/> so the UI can show one card per event with
+/// its old → new values (e.g. a salary change shows the old and new pay).
+/// </summary>
+public class EmployeeChangeLog
+{
+    public long Id { get; set; }
+    public string EmployeeId { get; set; } = null!;
+    public string EventId { get; set; } = null!;
+    public DateTime AtUtc { get; set; }
+    public string EventType { get; set; } = null!;
+    public string Field { get; set; } = null!;
+    public string? OldValue { get; set; }
+    public string? NewValue { get; set; }
+}
+
 /// <summary>EF Core DbContext for WorkforceSync.</summary>
 public class AppDbContext : DbContext
 {
@@ -94,6 +111,7 @@ public class AppDbContext : DbContext
     public DbSet<ProcessedEvent> ProcessedEvents => Set<ProcessedEvent>();
     public DbSet<Position> Positions => Set<Position>();
     public DbSet<IntegrationAuditLog> IntegrationAuditLog => Set<IntegrationAuditLog>();
+    public DbSet<EmployeeChangeLog> EmployeeChangeLog => Set<EmployeeChangeLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -138,6 +156,16 @@ public class AppDbContext : DbContext
         {
             e.HasKey(x => x.Id);
             e.HasIndex(x => x.AtUtc);
+        });
+
+        modelBuilder.Entity<EmployeeChangeLog>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.EmployeeId, x.AtUtc });
+            e.HasIndex(x => x.EventId);
+            e.Property(x => x.Field).HasMaxLength(64);
+            e.Property(x => x.OldValue).HasMaxLength(512);
+            e.Property(x => x.NewValue).HasMaxLength(512);
         });
     }
 }

@@ -10,3 +10,14 @@ body {
   background: #f8fafc;
   color: #0f172a;
 }
+
+/* Row-change highlight: a green flash that fades out over ~1.2s.
+   Applied (via the .row-flash class) to any audit/employee row that is new
+   or whose data changed since the last refresh. */
+@keyframes row-flash {
+  0%   { background-color: #bbf7d0; } /* green-200 */
+  100% { background-color: transparent; }
+}
+.row-flash {
+  animation: row-flash 1.2s ease-out;
+}

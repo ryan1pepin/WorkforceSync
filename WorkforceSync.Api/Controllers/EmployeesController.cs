@@ -77,6 +77,40 @@ public class EmployeesController : ControllerBase
         return emp is null ? NotFound() : Ok(ToDto(emp));
     }
 
+    /// <summary>
+    /// Gets an employee's change history (newest first): every event applied to
+    /// them, with the old → new value of each field it changed.
+    /// </summary>
+    [HttpGet("{employeeId}/changes")]
+    [ProducesResponseType(typeof(IReadOnlyList<EmployeeChangeDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetChanges(string employeeId, CancellationToken ct)
+    {
+        var exists = await _db.Employees.AsNoTracking()
+            .AnyAsync(e => e.EmployeeId == employeeId, ct);
+        if (!exists)
+        {
+            return NotFound();
+        }
+
+        var rows = await _db.EmployeeChangeLog.AsNoTracking()
+            .Where(c => c.EmployeeId == employeeId)
+            .OrderByDescending(c => c.AtUtc)
+            .ThenByDescending(c => c.Id)
+            .ToListAsync(ct);
+
+        var changes = rows
+            .GroupBy(c => c.EventId)
+            .Select(g => new EmployeeChangeDto(
+                g.Key,
+                g.Max(c => c.AtUtc),
+                g.First().EventType,
+                g.Select(c => new EmployeeChangeFieldDto(c.Field, c.OldValue, c.NewValue)).ToList()))
+            .ToList();
+
+        return Ok(changes);
+    }
+
     /// <summary>Creates an employee. Returns 201.</summary>
     [HttpPost]
     [ProducesResponseType(typeof(EmployeeDto), StatusCodes.Status201Created)]

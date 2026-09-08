@@ -45,6 +45,9 @@ public sealed class EventProcessor
 
             var employee = _transformer.Apply(evt, ToCore(existing));
 
+            // Capture the per-field old → new values for the change log.
+            var changes = BuildChanges(evt, existing, employee);
+
             var entity = await _db.Employees.FirstOrDefaultAsync(e => e.EmployeeId == evt.EmployeeId, ct);
             if (entity is null)
             {
@@ -85,6 +88,20 @@ public sealed class EventProcessor
                 Status = "Success",
                 Message = $"Event {evt.EventId} applied.",
             }, ct);
+
+            foreach (var change in changes)
+            {
+                await _db.EmployeeChangeLog.AddAsync(new EmployeeChangeLog
+                {
+                    EmployeeId = evt.EmployeeId,
+                    EventId = evt.EventId,
+                    AtUtc = DateTime.UtcNow,
+                    EventType = evt.Type.ToString(),
+                    Field = change.Field,
+                    OldValue = change.OldValue,
+                    NewValue = change.NewValue,
+                }, ct);
+            }
 
             await _db.SaveChangesAsync(ct);
             return "Success";
@@ -139,6 +156,64 @@ public sealed class EventProcessor
             }
         }
     }
+
+    /// <summary>
+    /// Computes the per-field old → new values for an applied event. A hire
+    /// records every field as a new value (old is null); other events record
+    /// only the fields that actually changed.
+    /// </summary>
+    private static List<Change> BuildChanges(
+        WorkforceEvent evt, Data.Employee? existing, Core.Models.Employee employee)
+    {
+        var changes = new List<Change>();
+
+        if (existing is null)
+        {
+            // New hire — everything is a new value.
+            changes.Add(new Change("Name", null, $"{employee.FirstName} {employee.LastName}"));
+            changes.Add(new Change("Email", null, employee.Email));
+            changes.Add(new Change("Job title", null, employee.JobTitle));
+            changes.Add(new Change("Department", null, employee.Department));
+            changes.Add(new Change("Start date", null, employee.StartDate.ToString("yyyy-MM-dd")));
+            changes.Add(new Change("Base salary", null, FormatSalary(employee.BaseSalary, employee.Currency)));
+            changes.Add(new Change("Status", null, "Active"));
+            return changes;
+        }
+
+        if (existing.JobTitle != employee.JobTitle)
+        {
+            changes.Add(new Change("Job title", existing.JobTitle, employee.JobTitle));
+        }
+        if (existing.Department != employee.Department)
+        {
+            changes.Add(new Change("Department", existing.Department, employee.Department));
+        }
+        if (existing.BaseSalary != employee.BaseSalary)
+        {
+            changes.Add(new Change("Base salary",
+                FormatSalary(existing.BaseSalary, existing.Currency),
+                FormatSalary(employee.BaseSalary, employee.Currency)));
+        }
+        if (existing.IsActive != employee.IsActive)
+        {
+            changes.Add(new Change("Status",
+                existing.IsActive ? "Active" : "Terminated",
+                employee.IsActive ? "Active" : "Terminated"));
+        }
+        if (employee.TerminationDate is not null && existing.TerminationDate != employee.TerminationDate)
+        {
+            changes.Add(new Change("Termination date",
+                existing.TerminationDate?.ToString("yyyy-MM-dd"),
+                employee.TerminationDate.Value.ToString("yyyy-MM-dd")));
+        }
+
+        return changes;
+    }
+
+    private static string FormatSalary(decimal salary, string currency) =>
+        $"{currency} {salary:N0}";
+
+    private sealed record Change(string Field, string? OldValue, string? NewValue);
 
     private static Core.Models.Employee? ToCore(Data.Employee? entity)
     {

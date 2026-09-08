@@ -46,3 +46,16 @@ public sealed record EmployeeUpdate(
 
 /// <summary>A page of results with total count.</summary>
 public sealed record PagedResult<T>(IReadOnlyList<T> Items, int TotalCount, int Page, int PageSize);
+
+/// <summary>One field's old → new value within an employee change event.</summary>
+public sealed record EmployeeChangeFieldDto(string Field, string? OldValue, string? NewValue);
+
+/// <summary>
+/// A single event in an employee's change history (e.g. a hire, promotion,
+/// comp change, or termination) with the fields it changed.
+/// </summary>
+public sealed record EmployeeChangeDto(
+    string EventId,
+    DateTime AtUtc,
+    string EventType,
+    IReadOnlyList<EmployeeChangeFieldDto> Fields);
