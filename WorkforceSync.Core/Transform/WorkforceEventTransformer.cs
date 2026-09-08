@@ -63,6 +63,7 @@ public sealed class WorkforceEventTransformer
 
     private static Employee ApplyPositionChange(WorkforceEvent evt, Employee existing)
     {
+        EnsureActive(existing, evt);
         return existing with
         {
             PositionId = evt.PositionId ?? existing.PositionId,
@@ -73,11 +74,30 @@ public sealed class WorkforceEventTransformer
 
     private static Employee ApplyCompensationChange(WorkforceEvent evt, Employee existing)
     {
+        EnsureActive(existing, evt);
         return existing with
         {
             BaseSalary = evt.BaseSalary ?? existing.BaseSalary,
             Currency = evt.Currency ?? existing.Currency,
         };
+    }
+
+    /// <summary>
+    /// A role or compensation change is only valid for an active employee. A
+    /// terminated person getting a new role is a <em>rehire</em> — which is a
+    /// Hire event that carries pay — not a bare PositionChange. Reject it so the
+    /// pipeline never puts a terminated employee into a changed-but-inactive
+    /// state.
+    /// </summary>
+    private static void EnsureActive(Employee existing, WorkforceEvent evt)
+    {
+        if (!existing.IsActive)
+        {
+            throw new WorkforceEventValidationException(
+                $"A '{evt.Type}' event cannot be applied to terminated employee " +
+                $"'{existing.EmployeeId}'. A new role or pay for a terminated person " +
+                "is a rehire and must arrive as a Hire event with compensation.");
+        }
     }
 
     private static Employee RequireExisting(WorkforceEvent evt, Employee? existing)

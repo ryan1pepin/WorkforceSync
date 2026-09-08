@@ -195,7 +195,7 @@ import { AuditEntry, Employee, EmployeeChange, Health } from './models';
         <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 border border-slate-100 overflow-hidden">
           <div class="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-white to-slate-50/50">
             <h2 class="font-semibold text-slate-800">Integration audit log</h2>
-            <p class="text-xs text-slate-400">every event the pipeline applied, newest first · new rows flash green</p>
+            <p class="text-xs text-slate-400">every event the pipeline applied or rejected, newest first</p>
           </div>
           <ul class="divide-y divide-slate-50">
             @for (a of audit(); track a.id) {
@@ -206,11 +206,21 @@ import { AuditEntry, Employee, EmployeeChange, Health } from './models';
                 <span
                   class="inline-block w-2 h-2 rounded-full shrink-0"
                   [class.bg-green-500]="a.status === 'Success'"
-                  [class.bg-red-500]="a.status !== 'Success'"
+                  [class.bg-amber-500]="a.status === 'Rejected'"
+                  [class.bg-red-500]="a.status === 'Error'"
                 ></span>
-                <span class="font-semibold text-slate-700 w-44 shrink-0">{{ a.eventType }}</span>
-                <span class="text-slate-500 font-mono text-xs">{{ a.employeeId }}</span>
-                <span class="text-slate-400 truncate flex-1">{{ a.message }}</span>
+                <span
+                  class="inline-block rounded-full px-2 py-0.5 text-xs font-semibold shrink-0 w-24 text-center"
+                  [class.bg-green-100]="a.status === 'Success'"
+                  [class.bg-amber-100]="a.status === 'Rejected'"
+                  [class.bg-red-100]="a.status === 'Error'"
+                  [class.text-green-700]="a.status === 'Success'"
+                  [class.text-amber-700]="a.status === 'Rejected'"
+                  [class.text-red-700]="a.status === 'Error'"
+                >{{ a.status }}</span>
+                <span class="font-semibold text-slate-700 w-40 shrink-0">{{ a.eventType }}</span>
+                <span class="text-slate-500 font-mono text-xs shrink-0">{{ a.employeeId }}</span>
+                <span class="text-slate-500 truncate flex-1">{{ a.message }}</span>
                 <span class="text-xs text-slate-400 shrink-0 tabular-nums">{{ a.atUtc | date:'HH:mm:ss' }}</span>
               </li>
             } @empty {

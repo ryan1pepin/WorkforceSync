@@ -83,4 +83,34 @@ public class WorkforceEventTransformerTests
         var badHire = AtomFixtures.ValidHire with { Email = null };
         Assert.Throws<InvalidOperationException>(() => _transformer.Apply(badHire));
     }
+
+    [Fact]
+    public void Apply_PositionChange_OnTerminated_ThrowsValidation()
+    {
+        var hired = _transformer.Apply(AtomFixtures.ValidHire);
+        var terminated = _transformer.Apply(AtomFixtures.ValidTermination, hired);
+
+        var ex = Assert.Throws<WorkforceEventValidationException>(
+            () => _transformer.Apply(AtomFixtures.ValidPositionChange, terminated));
+        Assert.Contains("rehire", ex.Message);
+    }
+
+    [Fact]
+    public void Apply_CompensationChange_OnTerminated_ThrowsValidation()
+    {
+        var hired = _transformer.Apply(AtomFixtures.ValidHire);
+        var terminated = _transformer.Apply(AtomFixtures.ValidTermination, hired);
+
+        Assert.Throws<WorkforceEventValidationException>(
+            () => _transformer.Apply(AtomFixtures.ValidCompensationChange, terminated));
+    }
+
+    [Fact]
+    public void Apply_PositionChange_OnActive_Succeeds()
+    {
+        var hired = _transformer.Apply(AtomFixtures.ValidHire);
+        var changed = _transformer.Apply(AtomFixtures.ValidPositionChange, hired);
+        Assert.True(changed.IsActive);
+        Assert.Equal("Senior Engineer", changed.JobTitle);
+    }
 }

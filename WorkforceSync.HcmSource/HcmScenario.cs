@@ -20,6 +20,7 @@ public sealed class HcmScenario
 {
     private readonly List<HcmEvent> _events = new();
     private readonly List<RosterEntry> _roster = new();
+    private readonly List<RosterEntry> _terminated = new();
     private readonly Random _rng;
     private readonly object _gate = new();
     private int _eventCounter;
@@ -69,6 +70,16 @@ public sealed class HcmScenario
 
     private void EmitRandomEvent(DateTime now)
     {
+        // Occasionally emit a stale/out-of-order event — a role or comp change
+        // for someone who has already left. Real feeds have these (late or
+        // duplicated messages), and the pipeline must reject them. This is what
+        // exercises the "role change after termination" guard.
+        if (_terminated.Count > 0 && _rng.Next(100) < 8)
+        {
+            EmitStaleChangeForTerminated(now);
+            return;
+        }
+
         // Weighted pick. Termination is only offered when there's someone to
         // terminate; otherwise its weight is redistributed.
         var roll = _rng.Next(100);
@@ -93,6 +104,41 @@ public sealed class HcmScenario
         else
         {
             EmitHire(now); // no one to terminate — fall back to a hire
+        }
+    }
+
+    /// <summary>
+    /// A stale event: a position or comp change targeting a terminated employee.
+    /// The consumer rejects it (a new role for a terminated person is a rehire,
+    /// which must arrive as a Hire with pay).
+    /// </summary>
+    private void EmitStaleChangeForTerminated(DateTime now)
+    {
+        var e = Pick(_terminated);
+        if (_rng.Next(2) == 0)
+        {
+            // Stale position change.
+            var newTitle = TitleFor(e.Department, Math.Min(e.Level + 1, MaxLevel));
+            _events.Add(new HcmEvent(
+                Id: NextEventId(),
+                Type: "PositionChange",
+                OccurredAtUtc: now,
+                EmployeeId: e.EmployeeId,
+                PositionId: $"pos-{100 + _eventCounter}",
+                JobTitle: newTitle,
+                Department: e.Department));
+        }
+        else
+        {
+            // Stale comp change.
+            var newSalary = Math.Round(e.BaseSalary * (1m + Pct(0.04m, 0.10m)), 0, MidpointRounding.AwayFromZero);
+            _events.Add(new HcmEvent(
+                Id: NextEventId(),
+                Type: "CompensationChange",
+                OccurredAtUtc: now,
+                EmployeeId: e.EmployeeId,
+                BaseSalary: newSalary,
+                Currency: "USD"));
         }
     }
 
@@ -170,6 +216,7 @@ public sealed class HcmScenario
     {
         var e = Pick(_roster);
         _roster.Remove(e);
+        _terminated.Add(e);
 
         _events.Add(new HcmEvent(
             Id: NextEventId(),

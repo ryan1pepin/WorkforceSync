@@ -86,7 +86,7 @@ public sealed class EventProcessor
                 EventType = evt.Type.ToString(),
                 EmployeeId = evt.EmployeeId,
                 Status = "Success",
-                Message = $"Event {evt.EventId} applied.",
+                Message = BuildAuditMessage(evt, existing, employee, changes),
             }, ct);
 
             foreach (var change in changes)
@@ -105,6 +105,22 @@ public sealed class EventProcessor
 
             await _db.SaveChangesAsync(ct);
             return "Success";
+        }
+        catch (WorkforceEventValidationException vex)
+        {
+            // Business-invalid event (e.g. a role change for a terminated person).
+            // Not applied — recorded as Rejected with the reason.
+            await _db.IntegrationAuditLog.AddAsync(new IntegrationAuditLog
+            {
+                AtUtc = DateTime.UtcNow,
+                Source = "hcm-atom-feed",
+                EventType = evt.Type.ToString(),
+                EmployeeId = evt.EmployeeId,
+                Status = "Rejected",
+                Message = vex.Message,
+            }, ct);
+            await _db.SaveChangesAsync(ct);
+            return "Rejected";
         }
         catch (Exception ex)
         {
@@ -212,6 +228,28 @@ public sealed class EventProcessor
 
     private static string FormatSalary(decimal salary, string currency) =>
         $"{currency} {salary:N0}";
+
+    /// <summary>
+    /// Builds a human-readable audit message: the employee's name plus a short
+    /// summary of what changed (e.g. "Ada Lovelace — Base salary: USD 118,000 →
+    /// USD 128,699"). Makes the audit log self-explanatory without a click-through.
+    /// </summary>
+    private static string BuildAuditMessage(
+        WorkforceEvent evt,
+        Data.Employee? existing,
+        Core.Models.Employee employee,
+        List<Change> changes)
+    {
+        var name = $"{employee.FirstName} {employee.LastName}";
+        var summary = changes.Count switch
+        {
+            0 => "no field changes",
+            1 => $"{changes[0].Field}: {changes[0].OldValue ?? "—"} → {changes[0].NewValue}",
+            _ => string.Join("; ", changes.Select(c =>
+                $"{c.Field}: {c.OldValue ?? "—"} → {c.NewValue}")),
+        };
+        return $"{name} — {summary}";
+    }
 
     private sealed record Change(string Field, string? OldValue, string? NewValue);
 
