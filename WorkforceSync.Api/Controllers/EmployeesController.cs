@@ -24,6 +24,7 @@ public class EmployeesController : ControllerBase
     [ProducesResponseType(typeof(PagedResult<EmployeeDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Get(
         [FromQuery] bool activeOnly = false,
+        [FromQuery] string? status = null,
         [FromQuery] string? department = null,
         [FromQuery] string? search = null,
         [FromQuery] int page = 1,
@@ -35,7 +36,18 @@ public class EmployeesController : ControllerBase
 
         var query = _db.Employees.AsNoTracking().AsQueryable();
 
-        if (activeOnly)
+        // `status` (active|terminated) takes precedence; `activeOnly` is kept
+        // for backward compatibility.
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            query = status.Trim().ToLowerInvariant() switch
+            {
+                "active" => query.Where(e => e.IsActive),
+                "terminated" => query.Where(e => !e.IsActive),
+                _ => query,
+            };
+        }
+        else if (activeOnly)
         {
             query = query.Where(e => e.IsActive);
         }

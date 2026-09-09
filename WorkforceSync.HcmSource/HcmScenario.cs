@@ -195,7 +195,9 @@ public sealed class HcmScenario
             EmployeeId: e.EmployeeId,
             PositionId: e.PositionId,
             JobTitle: e.JobTitle,
-            Department: e.Department));
+            Department: e.Department,
+            BaseSalary: e.BaseSalary,
+            Currency: "USD"));
     }
 
     private void EmitCompChange(DateTime now)

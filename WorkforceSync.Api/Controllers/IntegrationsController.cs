@@ -46,15 +46,41 @@ public class IntegrationsController : ControllerBase
         return Ok(dto);
     }
 
-    /// <summary>Recent integration audit log entries (newest first).</summary>
+    /// <summary>
+    /// Recent integration audit log entries (newest first). Filterable by
+    /// status, event type, and a free-text search over employee id / message.
+    /// </summary>
     [HttpGet("audit")]
     [Authorize]
     [ProducesResponseType(typeof(IReadOnlyList<AuditDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Audit([FromQuery] int limit = 50, CancellationToken ct = default)
+    public async Task<IActionResult> Audit(
+        [FromQuery] int limit = 50,
+        [FromQuery] string? status = null,
+        [FromQuery] string? eventType = null,
+        [FromQuery] string? search = null,
+        CancellationToken ct = default)
     {
         limit = Math.Clamp(limit, 1, 500);
 
-        var items = await _db.IntegrationAuditLog.AsNoTracking()
+        var query = _db.IntegrationAuditLog.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            query = query.Where(a => a.Status == status);
+        }
+        if (!string.IsNullOrWhiteSpace(eventType))
+        {
+            query = query.Where(a => a.EventType == eventType);
+        }
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.Trim();
+            query = query.Where(a =>
+                (a.EmployeeId != null && a.EmployeeId.Contains(s)) ||
+                (a.Message != null && a.Message.Contains(s)));
+        }
+
+        var items = await query
             .OrderByDescending(a => a.AtUtc)
             .Take(limit)
             .ToListAsync(ct);

@@ -230,9 +230,8 @@ public sealed class EventProcessor
         $"{currency} {salary:N0}";
 
     /// <summary>
-    /// Builds a human-readable audit message: the employee's name plus a short
-    /// summary of what changed (e.g. "Ada Lovelace — Base salary: USD 118,000 →
-    /// USD 128,699"). Makes the audit log self-explanatory without a click-through.
+    /// Builds a concise, human-readable audit message per event type, e.g.
+    /// "Ada Lovelace — promoted to Staff Software Engineer, USD 128,699".
     /// </summary>
     private static string BuildAuditMessage(
         WorkforceEvent evt,
@@ -241,14 +240,27 @@ public sealed class EventProcessor
         List<Change> changes)
     {
         var name = $"{employee.FirstName} {employee.LastName}";
-        var summary = changes.Count switch
+        var money = (decimal salary, string currency) => FormatSalary(salary, currency);
+
+        return evt.Type switch
         {
-            0 => "no field changes",
-            1 => $"{changes[0].Field}: {changes[0].OldValue ?? "—"} → {changes[0].NewValue}",
-            _ => string.Join("; ", changes.Select(c =>
-                $"{c.Field}: {c.OldValue ?? "—"} → {c.NewValue}")),
+            WorkforceEventType.Hire =>
+                $"{name} — hired as {employee.JobTitle} ({employee.Department}), {money(employee.BaseSalary, employee.Currency)}",
+
+            WorkforceEventType.PositionChange =>
+                $"{name} — {existing?.JobTitle} → {employee.JobTitle}" +
+                (employee.BaseSalary != (existing?.BaseSalary ?? 0m)
+                    ? $", {money(existing!.BaseSalary, existing!.Currency)} → {money(employee.BaseSalary, employee.Currency)}"
+                    : ""),
+
+            WorkforceEventType.CompensationChange =>
+                $"{name} — pay {money(existing!.BaseSalary, existing!.Currency)} → {money(employee.BaseSalary, employee.Currency)}",
+
+            WorkforceEventType.Termination =>
+                $"{name} — terminated {employee.TerminationDate:yyyy-MM-dd}",
+
+            _ => $"{name} — {evt.Type}",
         };
-        return $"{name} — {summary}";
     }
 
     private sealed record Change(string Field, string? OldValue, string? NewValue);

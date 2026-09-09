@@ -113,4 +113,23 @@ public class WorkforceEventTransformerTests
         Assert.True(changed.IsActive);
         Assert.Equal("Senior Engineer", changed.JobTitle);
     }
+
+    [Fact]
+    public void Apply_PositionChange_WithSalary_AppliesPay()
+    {
+        var hired = _transformer.Apply(AtomFixtures.ValidHire);
+        var promoted = _transformer.Apply(
+            AtomFixtures.ValidPositionChange with { BaseSalary = 140000m }, hired);
+
+        Assert.Equal("Senior Engineer", promoted.JobTitle);
+        Assert.Equal(140000m, promoted.BaseSalary);
+    }
+
+    [Fact]
+    public void Apply_PositionChange_WithoutSalary_KeepsPay()
+    {
+        var hired = _transformer.Apply(AtomFixtures.ValidHire);
+        var changed = _transformer.Apply(AtomFixtures.ValidPositionChange, hired);
+        Assert.Equal(120000m, changed.BaseSalary); // unchanged
+    }
 }

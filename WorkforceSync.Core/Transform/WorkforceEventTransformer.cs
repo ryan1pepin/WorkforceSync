@@ -69,6 +69,10 @@ public sealed class WorkforceEventTransformer
             PositionId = evt.PositionId ?? existing.PositionId,
             JobTitle = evt.JobTitle ?? existing.JobTitle,
             Department = evt.Department ?? existing.Department,
+            // A promotion typically carries a pay change too — apply it when the
+            // event includes compensation (a bare title change leaves pay as-is).
+            BaseSalary = evt.BaseSalary ?? existing.BaseSalary,
+            Currency = evt.Currency ?? existing.Currency,
         };
     }
 

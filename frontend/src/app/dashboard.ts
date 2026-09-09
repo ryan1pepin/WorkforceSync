@@ -79,14 +79,50 @@ import { AuditEntry, Employee, EmployeeChange, Health } from './models';
 
         <!-- Employees -->
         <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 border border-slate-100 overflow-hidden">
-          <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-white to-slate-50/50">
-            <div>
-              <h2 class="font-semibold text-slate-800">Employees</h2>
-              <p class="text-xs text-slate-400">auto-refreshes as the HCM feed publishes · changed rows flash green</p>
+          <div class="px-6 py-4 border-b border-slate-100 flex flex-col gap-3 bg-gradient-to-r from-white to-slate-50/50">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="font-semibold text-slate-800">Employees</h2>
+                <p class="text-xs text-slate-400">auto-refreshes as the HCM feed publishes · click a row for change history</p>
+              </div>
+              <span class="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-3 py-1">
+                {{ employees().length }} records
+              </span>
             </div>
-            <span class="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-3 py-1">
-              {{ employees().length }} records
-            </span>
+            <div class="flex flex-wrap items-center gap-2">
+              <input
+                type="search"
+                placeholder="Search name, email, title…"
+                class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 w-56"
+                [value]="empSearch()"
+                (input)="onEmpSearch($any($event).target.value)"
+              />
+              <select
+                class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                [value]="empDepartment()"
+                (change)="onEmpDepartment($any($event).target.value)"
+              >
+                <option value="">All departments</option>
+                @for (d of departments(); track d) {
+                  <option [value]="d">{{ d }}</option>
+                }
+              </select>
+              <select
+                class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                [value]="empStatus()"
+                (change)="onEmpStatus($any($event).target.value)"
+              >
+                <option value="">All statuses</option>
+                <option value="active">Active</option>
+                <option value="terminated">Terminated</option>
+              </select>
+              @if (hasEmpFilters()) {
+                <button
+                  (click)="clearEmpFilters()"
+                  class="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2"
+                >Clear</button>
+              }
+            </div>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -193,9 +229,52 @@ import { AuditEntry, Employee, EmployeeChange, Health } from './models';
 
         <!-- Audit log -->
         <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 border border-slate-100 overflow-hidden">
-          <div class="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-white to-slate-50/50">
-            <h2 class="font-semibold text-slate-800">Integration audit log</h2>
-            <p class="text-xs text-slate-400">every event the pipeline applied or rejected, newest first</p>
+          <div class="px-6 py-4 border-b border-slate-100 flex flex-col gap-3 bg-gradient-to-r from-white to-slate-50/50">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="font-semibold text-slate-800">Integration audit log</h2>
+                <p class="text-xs text-slate-400">every event the pipeline applied or rejected, newest first</p>
+              </div>
+              <span class="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-3 py-1">
+                {{ audit().length }} events
+              </span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <select
+                class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                [value]="auditStatus()"
+                (change)="onAuditStatus($any($event).target.value)"
+              >
+                <option value="">All statuses</option>
+                <option value="Success">Success</option>
+                <option value="Rejected">Rejected</option>
+                <option value="Error">Error</option>
+              </select>
+              <select
+                class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                [value]="auditType()"
+                (change)="onAuditType($any($event).target.value)"
+              >
+                <option value="">All event types</option>
+                <option value="Hire">Hire</option>
+                <option value="PositionChange">Position change</option>
+                <option value="CompensationChange">Comp change</option>
+                <option value="Termination">Termination</option>
+              </select>
+              <input
+                type="search"
+                placeholder="Search employee or detail…"
+                class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 w-56"
+                [value]="auditSearch()"
+                (input)="onAuditSearch($any($event).target.value)"
+              />
+              @if (hasAuditFilters()) {
+                <button
+                  (click)="clearAuditFilters()"
+                  class="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2"
+                >Clear</button>
+              }
+            </div>
           </div>
           <ul class="divide-y divide-slate-50">
             @for (a of audit(); track a.id) {
@@ -250,6 +329,25 @@ export class Dashboard implements OnInit, OnDestroy {
   readonly changes = signal<EmployeeChange[]>([]);
   readonly changesLoading = signal(false);
 
+  // Employee table filters.
+  readonly empSearch = signal('');
+  readonly empDepartment = signal('');
+  readonly empStatus = signal(''); // '' | 'active' | 'terminated'
+
+  // Audit table filters.
+  readonly auditStatus = signal(''); // '' | 'Success' | 'Rejected' | 'Error'
+  readonly auditType = signal('');   // '' | 'Hire' | 'PositionChange' | 'CompensationChange' | 'Termination'
+  readonly auditSearch = signal('');
+
+  /** Distinct departments currently in the employee list (for the filter dropdown). */
+  readonly departments = () =>
+    [...new Set(this.employees().map((e) => e.department))].sort();
+
+  readonly hasEmpFilters = () =>
+    this.empSearch() !== '' || this.empDepartment() !== '' || this.empStatus() !== '';
+  readonly hasAuditFilters = () =>
+    this.auditStatus() !== '' || this.auditType() !== '' || this.auditSearch() !== '';
+
   /**
    * Rows that should flash green. Keyed by a stable id with a source prefix
    * ('a:<auditId>' for audit rows, 'e:<employeeId>' for employee rows). A row
@@ -283,7 +381,11 @@ export class Dashboard implements OnInit, OnDestroy {
   }
 
   private refresh(): void {
-    this.workforce.employees().subscribe({
+    this.workforce.employees(1, 50, {
+      status: this.empStatus() || undefined,
+      department: this.empDepartment() || undefined,
+      search: this.empSearch() || undefined,
+    }).subscribe({
       next: (res) => {
         if (this.employeesLoaded) {
           for (const e of res.items) {
@@ -301,7 +403,7 @@ export class Dashboard implements OnInit, OnDestroy {
         /* interceptor handles 401 → logout; ignore transient errors */
       },
     });
-    this.workforce.audit(30).subscribe({
+    this.workforce.audit(30, this.auditStatus() || undefined, this.auditType() || undefined, this.auditSearch() || undefined).subscribe({
       next: (items) => {
         if (this.auditLoaded) {
           for (const a of items) {
@@ -324,6 +426,24 @@ export class Dashboard implements OnInit, OnDestroy {
         /* ignore */
       },
     });
+  }
+
+  // ── Employee table filters ────────────────────────────────────────────────
+  onEmpSearch(v: string): void { this.empSearch.set(v); this.refresh(); }
+  onEmpDepartment(v: string): void { this.empDepartment.set(v); this.refresh(); }
+  onEmpStatus(v: string): void { this.empStatus.set(v); this.refresh(); }
+  clearEmpFilters(): void {
+    this.empSearch.set(''); this.empDepartment.set(''); this.empStatus.set('');
+    this.refresh();
+  }
+
+  // ── Audit table filters ───────────────────────────────────────────────────
+  onAuditStatus(v: string): void { this.auditStatus.set(v); this.refresh(); }
+  onAuditType(v: string): void { this.auditType.set(v); this.refresh(); }
+  onAuditSearch(v: string): void { this.auditSearch.set(v); this.refresh(); }
+  clearAuditFilters(): void {
+    this.auditStatus.set(''); this.auditType.set(''); this.auditSearch.set('');
+    this.refresh();
   }
 
   /** Toggle the expanded change-history row for an employee. */
