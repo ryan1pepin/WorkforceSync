@@ -148,7 +148,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("angular");
-app.UseHttpsRedirection();
+// No UseHttpsRedirection: this is a local dev app proxied by Angular (ng serve →
+// http://localhost:5140). A 307 to https://localhost:7178 would bounce the proxy
+// cross-origin and drop the Authorization header, 401-ing every data call.
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
