@@ -1,13 +1,56 @@
 # WorkforceSync
 
 An end-to-end **HR data integration platform** — a working demonstration of the
-integration patterns used in enterprise HR Technology (Oracle HCM Cloud ↔ enterprise
+integration patterns used in enterprise HR technology (Oracle HCM Cloud ↔ enterprise
 systems): ATOM feed ingestion, data transformation & validation, message queuing,
-JWT-secured REST APIs, and an Angular dashboard.
+JWT-secured REST APIs, and a live Angular dashboard.
 
-Built as a portfolio/interview project targeting an **Application, Integrations &
-Extensions Developer** role (C# + Angular, HR integrations, ATOM feeds, OAuth/JWT,
-middleware/queuing patterns).
+Built with C# and Angular to work through the integration patterns I use in
+production — ATOM feeds, OAuth/JWT, message queuing, and middleware — end to end.
+
+## Demo
+
+A ~50-second walkthrough: sign in, watch the live feed land events, drill into an
+employee's change history, and see the pipeline reject a bad one.
+
+<p align="center">
+  <img src="docs/screenshots/dashboard.png" alt="WorkforceSync dashboard" width="100%">
+</p>
+
+<video src="docs/WorkforceSync-Demo.mp4" controls width="100%"></video>
+
+## What it does
+
+A mock **Oracle HCM Cloud** publishes an ATOM feed of workforce events — hires,
+promotions, comp changes, terminations. A .NET service polls the feed, transforms and
+validates each payload, queues it through a bounded `Channel<T>`, and applies it
+idempotently. A JWT-secured REST API exposes the data, and an Angular dashboard shows
+it live.
+
+The feed is *not* a fixed script — it's a weighted-random stream that keeps evolving
+(people get promoted, paid more, leave, and new people join), so the pipeline is
+exercised against a realistic, unbounded workload. It also occasionally emits a
+**stale event** (a comp or role change for someone who already left), which the
+processor correctly **rejects** — exactly the kind of late/duplicated message real
+feeds produce.
+
+### The dashboard
+
+- **Live KPIs** — pipeline health, headcount, active/terminated, departments.
+- **Employee table** — auto-refreshes as the feed publishes; search + per-column
+  filters (department, status); click any row for its **change history**.
+- **Change history** — a per-employee audit trail showing each field's old → new value
+  (hire → promotion → comp), so you can see *how* a record evolved.
+- **Integration audit log** — every event the pipeline applied *or rejected*, with
+  status, type, and a human-readable description.
+
+<p align="center">
+  <img src="docs/screenshots/change-history.png" alt="Per-employee change history" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/audit.png" alt="Integration audit log" width="100%">
+</p>
 
 ## Architecture
 
@@ -29,7 +72,7 @@ middleware/queuing patterns).
                                    │            ▼             │
                                    │  ┌────────────────────┐  │
                                    │  │ EF Core + SQLite   │  │
-                                   │  └────────────────────┘  │
+                                   │  └─────────┬──────────┘  │
                                    │                          │
                                    │  JWT auth (access +      │
                                    │  refresh rotation)       │
@@ -39,7 +82,7 @@ middleware/queuing patterns).
                                    ┌──────────────────────────┐
                                    │  Angular 20 dashboard    │
                                    │  (signals, guards,       │
-                                   │   interceptors, SSR)     │
+                                   │   interceptors)          │
                                    └──────────────────────────┘
 ```
 
@@ -51,38 +94,31 @@ middleware/queuing patterns).
 | `WorkforceSync.Api` | ASP.NET Core Web API: JWT auth, workforce endpoints, background ingestion, `Channel<T>` queue, EF Core + SQLite, OpenAPI. |
 | `WorkforceSync.HcmSource` | Mock Oracle HCM Cloud: emits an ATOM feed of hire/terminate/position/comp events. |
 | `WorkforceSync.Core.Tests` | xUnit unit + integration tests for Core (and API via WebApplicationFactory). |
-| `frontend/` | Angular 20 dashboard (standalone, signals, zone.js, Tailwind, Jest). |
+| `frontend/` | Angular 20 dashboard (standalone, signals, Tailwind). |
 
 ## Quick start
 
 ```bash
 # Backend
 dotnet run --project WorkforceSync.Api
-# API: http://localhost:5080  (Swagger: /swagger)
+# API: http://localhost:5140  (Swagger: /swagger)
 
-# Frontend (after M4)
+# Frontend
 cd frontend && npm install && npm start
 # App: http://localhost:4200
 ```
+
+Sign in with the demo account (`demo@corp.example` / `Demo123!`) — it's pre-filled on
+the login screen. The mock HCM publishes a new workforce event every few seconds; watch
+the dashboard update live.
 
 ## Tests
 
 ```bash
 dotnet test          # C# unit + integration tests
-cd frontend && npm test   # Angular Jest tests
+cd frontend && npm test   # Angular (Karma/Jasmine)
 ```
-
-## Milestones
-
-- **M0** — repo, solution structure, CI, git baseline ✅
-- **M1** — C# core: ATOM parse + transform + validation + unit tests
-- **M2** — C# API + JWT auth (access + refresh rotation) + EF Core
-- **M3** — C# background ingestion + `Channel<T>` queue + mock HCM ATOM source
-- **M4** — Angular scaffold + auth (signals store, guard, 401-refresh interceptor)
-- **M5** — Angular dashboard: headcount, hires/terminations, position changes, live audit log
-- **M6** — integration tests, README, architecture diagram, polish
 
 ## Conventions
 
-See `AGENTS.md` — it is the source of truth for code style and is followed by all
-AI-assisted tooling (Codex, Copilot) on this repo.
+See `AGENTS.md` for the code conventions used across the repo.
