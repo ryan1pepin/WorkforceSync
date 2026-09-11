@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using WorkforceSync.Api.Auth;
 using WorkforceSync.Api.Data;
@@ -153,6 +154,20 @@ app.UseCors("angular");
 // cross-origin and drop the Authorization header, 401-ing every data call.
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Serve the built Angular app (copied into wwwroot at build time) so the API can
+// run standalone — e.g. in Docker. In dev, `ng serve` proxies to this API instead.
+var frontendRoot = Path.Combine(AppContext.BaseDirectory, "wwwroot");
+if (Directory.Exists(frontendRoot))
+{
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new PhysicalFileProvider(frontendRoot),
+        RequestPath = ""
+    });
+    app.MapFallbackToFile("index.html");
+}
+
 app.MapControllers();
 
 app.Run();

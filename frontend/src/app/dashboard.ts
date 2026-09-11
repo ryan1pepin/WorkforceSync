@@ -3,7 +3,7 @@ import { DatePipe, DecimalPipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from './auth.service';
 import { WorkforceService } from './workforce.service';
-import { AuditEntry, Employee, EmployeeChange, Health } from './models';
+import { AuditEntry, DeadLetter, Employee, EmployeeChange, Health, Metrics } from './models';
 
 @Component({
   selector: 'app-dashboard',
@@ -76,6 +76,28 @@ import { AuditEntry, Employee, EmployeeChange, Health } from './models';
             <div class="text-xs text-slate-400 mt-2">across the org</div>
           </div>
         </div>
+
+        <!-- Pipeline metrics strip -->
+        @if (metrics(); ) {
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div class="bg-white rounded-xl shadow-md shadow-slate-200/50 border border-slate-100 px-4 py-3 hover:shadow-lg transition-all duration-200">
+              <div class="text-xs font-medium text-slate-500">Events applied</div>
+              <div class="mt-1 text-xl font-bold text-green-600">{{ metrics()!.applied }}</div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md shadow-slate-200/50 border border-slate-100 px-4 py-3 hover:shadow-lg transition-all duration-200">
+              <div class="text-xs font-medium text-slate-500">Rejected</div>
+              <div class="mt-1 text-xl font-bold text-amber-600">{{ metrics()!.rejected }}</div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md shadow-slate-200/50 border border-slate-100 px-4 py-3 hover:shadow-lg transition-all duration-200">
+              <div class="text-xs font-medium text-slate-500">Dead-letter pending</div>
+              <div class="mt-1 text-xl font-bold text-red-600">{{ metrics()!.deadLetterPending }}</div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md shadow-slate-200/50 border border-slate-100 px-4 py-3 hover:shadow-lg transition-all duration-200">
+              <div class="text-xs font-medium text-slate-500">Events / min</div>
+              <div class="mt-1 text-xl font-bold text-blue-600">{{ metrics()!.eventsLastMinute }}</div>
+            </div>
+          </div>
+        }
 
         <!-- Employees -->
         <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 border border-slate-100 overflow-hidden">
@@ -308,6 +330,67 @@ import { AuditEntry, Employee, EmployeeChange, Health } from './models';
           </ul>
         </section>
 
+        <!-- Dead-letter queue -->
+        <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 border border-slate-100 overflow-hidden">
+          <div class="px-6 py-4 border-b border-slate-100 flex flex-col gap-3 bg-gradient-to-r from-white to-slate-50/50">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="font-semibold text-slate-800">Dead-letter queue</h2>
+                <p class="text-xs text-slate-400">events the pipeline couldn't apply — inspect, replay, or discard</p>
+              </div>
+              <span class="text-xs font-medium text-red-600 bg-red-50 border border-red-100 rounded-full px-3 py-1">
+                {{ pendingDeadLetterCount() }} pending
+              </span>
+            </div>
+          </div>
+          <ul class="divide-y divide-slate-50">
+            @for (d of deadLetters(); track d.id) {
+              <li class="px-6 py-3.5 flex items-start gap-3 text-sm hover:bg-slate-50/50 transition-colors">
+                <span
+                  class="inline-block rounded-full px-2 py-0.5 text-xs font-semibold shrink-0 mt-0.5"
+                  [class.bg-amber-100]="d.status === 'Pending'"
+                  [class.bg-green-100]="d.status === 'Replayed'"
+                  [class.bg-slate-100]="d.status === 'Discarded'"
+                  [class.text-amber-700]="d.status === 'Pending'"
+                  [class.text-green-700]="d.status === 'Replayed'"
+                  [class.text-slate-500]="d.status === 'Discarded'"
+                >{{ d.status }}</span>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="font-semibold text-slate-700">{{ d.eventType }}</span>
+                    <span class="text-slate-400 font-mono text-xs">{{ d.employeeId }}</span>
+                    <span class="text-xs text-slate-400 tabular-nums">{{ d.createdAtUtc | date:'HH:mm:ss' }}</span>
+                  </div>
+                  <p class="text-xs text-slate-500 mt-1 truncate" [title]="d.reason">{{ d.reason }}</p>
+                  @if (d.lastResult) {
+                    <p class="text-xs text-slate-400 mt-0.5">last replay: {{ d.lastResult }}</p>
+                  }
+                </div>
+                @if (d.status === 'Pending') {
+                  <div class="flex items-center gap-2 shrink-0">
+                    <button
+                      (click)="replay(d)"
+                      class="rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-3 py-1.5 transition shadow-sm"
+                    >
+                      Replay
+                    </button>
+                    <button
+                      (click)="discard(d)"
+                      class="rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-medium px-3 py-1.5 transition"
+                    >
+                      Discard
+                    </button>
+                  </div>
+                }
+              </li>
+            } @empty {
+              <li class="px-6 py-10 text-center text-slate-400">
+                No dead-lettered events — the pipeline is clean.
+              </li>
+            }
+          </ul>
+        </section>
+
         <footer class="text-center text-xs text-slate-400 pb-4">
           WorkforceSync · mock Oracle HCM → ATOM feed → Channel&lt;T&gt; queue → idempotent processor → Angular
         </footer>
@@ -323,6 +406,8 @@ export class Dashboard implements OnInit, OnDestroy {
   readonly employees = signal<Employee[]>([]);
   readonly audit = signal<AuditEntry[]>([]);
   readonly health = signal<Health | null>(null);
+  readonly metrics = signal<Metrics | null>(null);
+  readonly deadLetters = signal<DeadLetter[]>([]);
 
   // Expanded employee row + its change history.
   readonly expandedId = signal<string | null>(null);
@@ -360,6 +445,8 @@ export class Dashboard implements OnInit, OnDestroy {
   readonly terminatedCount = () => this.employees().filter((e) => !e.isActive).length;
   readonly departmentCount = () =>
     new Set(this.employees().map((e) => e.department)).size;
+  readonly pendingDeadLetterCount = () =>
+    this.deadLetters().filter((d) => d.status === 'Pending').length;
 
   private timer: ReturnType<typeof setInterval> | null = null;
 
@@ -426,6 +513,18 @@ export class Dashboard implements OnInit, OnDestroy {
         /* ignore */
       },
     });
+    this.workforce.metrics().subscribe({
+      next: (m) => this.metrics.set(m),
+      error: () => {
+        /* ignore */
+      },
+    });
+    this.workforce.deadLetter().subscribe({
+      next: (items) => this.deadLetters.set(items),
+      error: () => {
+        /* ignore */
+      },
+    });
   }
 
   // ── Employee table filters ────────────────────────────────────────────────
@@ -483,6 +582,21 @@ export class Dashboard implements OnInit, OnDestroy {
         this.flashIds.set(cleaned);
       }
     }, 1300);
+  }
+
+  // ── Dead-letter queue ─────────────────────────────────────────────────────
+  replay(d: DeadLetter): void {
+    this.workforce.replayDeadLetter(d.id).subscribe({
+      next: () => this.refresh(),
+      error: () => this.refresh(),
+    });
+  }
+
+  discard(d: DeadLetter): void {
+    this.workforce.discardDeadLetter(d.id).subscribe({
+      next: () => this.refresh(),
+      error: () => this.refresh(),
+    });
   }
 
   logout(): void {

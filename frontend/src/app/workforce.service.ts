@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { AuditEntry, Employee, EmployeeChange, Health, PagedResult, Position } from './models';
+import { AuditEntry, DeadLetter, Employee, EmployeeChange, Health, Metrics, PagedResult, Position } from './models';
 
 @Injectable({ providedIn: 'root' })
 export class WorkforceService {
@@ -37,5 +37,23 @@ export class WorkforceService {
 
   health(): Observable<Health> {
     return this.http.get<Health>('/integrations/health');
+  }
+
+  metrics(): Observable<Metrics> {
+    return this.http.get<Metrics>('/integrations/metrics');
+  }
+
+  deadLetter(status?: string): Observable<DeadLetter[]> {
+    const params: Record<string, string> = { limit: '50' };
+    if (status) params['status'] = status;
+    return this.http.get<DeadLetter[]>('/integrations/dead-letter', { params });
+  }
+
+  replayDeadLetter(id: number): Observable<{ id: number; result: string }> {
+    return this.http.post<{ id: number; result: string }>(`/integrations/dead-letter/${id}/replay`, {});
+  }
+
+  discardDeadLetter(id: number): Observable<void> {
+    return this.http.delete<void>(`/integrations/dead-letter/${id}`);
   }
 }

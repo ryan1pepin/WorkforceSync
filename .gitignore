@@ -9,6 +9,8 @@ obj/
 *.db-shm
 *.db-wal
 appsettings.*.Local.json
+# Frontend build copied into the API at build time (generated, not source)
+WorkforceSync.Api/wwwroot/
 
 # Node / Angular
 node_modules/

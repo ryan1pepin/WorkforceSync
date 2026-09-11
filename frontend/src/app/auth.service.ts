@@ -1,7 +1,7 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of, throwError } from 'rxjs';
-import { catchError, map, switchMap } from 'rxjs/operators';
+import { Observable, throwError } from 'rxjs';
+import { finalize, map } from 'rxjs/operators';
 import { AuthResponse, User } from './models';
 
 const ACCESS_KEY = 'wfs.accessToken';
@@ -53,15 +53,28 @@ export class AuthService {
   /**
    * Exchanges the stored refresh token for a fresh access token.
    * The API rotates the refresh token on every use, so we persist the new one.
+   *
+   * In-flight deduplication: if several requests 401 at the same time, they
+   * all share this single refresh call. Without it, the second call would
+   * present an already-rotated token, which the API treats as reuse and
+   * revokes the whole family — logging the user out.
    */
+  private refreshing: Observable<User> | null = null;
+
   refresh(): Observable<User> {
     const rt = this.refreshToken;
     if (!rt) {
       return throwError(() => new Error('No refresh token'));
     }
-    return this.http
-      .post<AuthResponse>('/auth/refresh', { refreshToken: rt })
-      .pipe(map((res) => this.storeSession(res)));
+    if (!this.refreshing) {
+      this.refreshing = this.http
+        .post<AuthResponse>('/auth/refresh', { refreshToken: rt })
+        .pipe(
+          map((res) => this.storeSession(res)),
+          finalize(() => (this.refreshing = null)),
+        );
+    }
+    return this.refreshing;
   }
 
   logout(): void {

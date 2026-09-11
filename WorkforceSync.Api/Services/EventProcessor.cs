@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using WorkforceSync.Api.Data;
 using WorkforceSync.Core.Models;
@@ -109,7 +110,8 @@ public sealed class EventProcessor
         catch (WorkforceEventValidationException vex)
         {
             // Business-invalid event (e.g. a role change for a terminated person).
-            // Not applied — recorded as Rejected with the reason.
+            // Not applied — recorded as Rejected with the reason, and parked in
+            // the dead-letter queue so it can be inspected and replayed.
             await _db.IntegrationAuditLog.AddAsync(new IntegrationAuditLog
             {
                 AtUtc = DateTime.UtcNow,
@@ -119,6 +121,7 @@ public sealed class EventProcessor
                 Status = "Rejected",
                 Message = vex.Message,
             }, ct);
+            await DeadLetterAsync(evt, "Rejected", vex.Message, ct);
             await _db.SaveChangesAsync(ct);
             return "Rejected";
         }
@@ -133,9 +136,61 @@ public sealed class EventProcessor
                 Status = "Error",
                 Message = ex.Message,
             }, ct);
+            await DeadLetterAsync(evt, "Error", ex.Message, ct);
             await _db.SaveChangesAsync(ct);
             return "Error";
         }
+    }
+
+    /// <summary>
+    /// Parks an event that could not be applied in the dead-letter queue,
+    /// storing its full payload so a later replay can re-drive it.
+    /// </summary>
+    private Task DeadLetterAsync(WorkforceEvent evt, string status, string reason, CancellationToken ct)
+    {
+        _db.DeadLetterEvents.Add(new DeadLetterEvent
+        {
+            EventId = evt.EventId,
+            EventType = evt.Type.ToString(),
+            EmployeeId = evt.EmployeeId,
+            PayloadJson = JsonSerializer.Serialize(evt),
+            Reason = reason,
+            Status = "Pending",
+            CreatedAtUtc = DateTime.UtcNow,
+        });
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Replays a dead-lettered event: deserializes its stored payload and runs
+    /// it through the normal pipeline again. Used after the underlying state
+    /// is corrected (e.g. the employee is rehired, so a stale position change
+    /// is now valid). Returns the same result codes as <see cref="ProcessAsync"/>.
+    /// </summary>
+    public async Task<string> ReplayAsync(long deadLetterId, CancellationToken ct)
+    {
+        var dlq = await _db.DeadLetterEvents.FirstOrDefaultAsync(d => d.Id == deadLetterId, ct);
+        if (dlq is null)
+        {
+            return "NotFound";
+        }
+
+        var evt = JsonSerializer.Deserialize<WorkforceEvent>(dlq.PayloadJson);
+        if (evt is null)
+        {
+            dlq.Status = "Discarded";
+            dlq.LastResult = "Unreadable payload";
+            await _db.SaveChangesAsync(ct);
+            return "Error";
+        }
+
+        var result = await ProcessAsync(evt, ct);
+
+        dlq.ReplayedAtUtc = DateTime.UtcNow;
+        dlq.LastResult = result;
+        dlq.Status = result == "Success" ? "Replayed" : "Pending";
+        await _db.SaveChangesAsync(ct);
+        return result;
     }
 
     private async Task<bool> AlreadyProcessedAsync(string eventId, CancellationToken ct)

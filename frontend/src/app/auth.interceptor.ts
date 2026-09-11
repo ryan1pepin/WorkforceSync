@@ -1,4 +1,4 @@
-import { HttpClient, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
+import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
@@ -6,12 +6,11 @@ import { AuthService } from './auth.service';
 
 /**
  * Attaches the Bearer token to every request. On a 401, attempts exactly one
- * refresh and replays the original request; if the refresh fails, the session
- * is cleared and the caller is bounced to login.
+ * refresh and replays the original request with the rotated token; if the
+ * refresh fails, the session is cleared and the caller is bounced to login.
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
-  const http = inject(HttpClient);
 
   const token = auth.accessToken;
   const authorized = token
@@ -24,7 +23,15 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         return throwError(() => err);
       }
       return auth.refresh().pipe(
-        switchMap(() => next(authorized)),
+        switchMap(() => {
+          // Re-read the token AFTER rotation: `authorized` still carries the
+          // expired one, and replaying it would 401 again.
+          const fresh = auth.accessToken;
+          const replay = fresh
+            ? req.clone({ setHeaders: { Authorization: `Bearer ${fresh}` } })
+            : req;
+          return next(replay);
+        }),
         catchError((refreshErr: HttpErrorResponse) => {
           auth.logout();
           return throwError(() => refreshErr);

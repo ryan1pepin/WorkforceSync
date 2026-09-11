@@ -1,0 +1,26 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__WorkforceSync=Data Source=/app/data/workforcesync.db
+      - Jwt__Key=dev-only-change-me-9f8e7d6c5b4a39281706f5e4d3c2b1a09f8e7d6c5b4a3928
+      - Ingestion__Enabled=true
+      - Ingestion__FeedUrl=http://127.0.0.1:5199/feed
+      - Ingestion__PollIntervalSeconds=5
+      - Ingestion__QueueCapacity=1000
+      - Ingestion__ScenarioStepSeconds=15
+    volumes:
+      - wfs-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/integrations/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  wfs-data:

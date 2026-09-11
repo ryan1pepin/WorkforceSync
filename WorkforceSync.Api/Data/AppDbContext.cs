@@ -98,6 +98,30 @@ public class EmployeeChangeLog
     public string? NewValue { get; set; }
 }
 
+/// <summary>
+/// A dead-lettered event: one the pipeline could not apply (rejected as
+/// business-invalid, or errored) and parked for inspection and replay instead
+/// of dropping or wedging the feed. The full event payload is stored so a
+/// replay can re-drive it once the underlying state is corrected.
+/// </summary>
+public class DeadLetterEvent
+{
+    public long Id { get; set; }
+    public string EventId { get; set; } = null!;
+    public string EventType { get; set; } = null!;
+    public string? EmployeeId { get; set; }
+    /// <summary>Serialized <c>WorkforceEvent</c> — the source of truth for a replay.</summary>
+    public string PayloadJson { get; set; } = null!;
+    /// <summary>Why it was dead-lettered (the rejection / error reason).</summary>
+    public string Reason { get; set; } = null!;
+    /// <summary>"Pending" | "Replayed" | "Discarded".</summary>
+    public string Status { get; set; } = "Pending";
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime? ReplayedAtUtc { get; set; }
+    /// <summary>Outcome of the most recent replay attempt, if any.</summary>
+    public string? LastResult { get; set; }
+}
+
 /// <summary>EF Core DbContext for WorkforceSync.</summary>
 public class AppDbContext : DbContext
 {
@@ -112,6 +136,7 @@ public class AppDbContext : DbContext
     public DbSet<Position> Positions => Set<Position>();
     public DbSet<IntegrationAuditLog> IntegrationAuditLog => Set<IntegrationAuditLog>();
     public DbSet<EmployeeChangeLog> EmployeeChangeLog => Set<EmployeeChangeLog>();
+    public DbSet<DeadLetterEvent> DeadLetterEvents => Set<DeadLetterEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -166,6 +191,16 @@ public class AppDbContext : DbContext
             e.Property(x => x.Field).HasMaxLength(64);
             e.Property(x => x.OldValue).HasMaxLength(512);
             e.Property(x => x.NewValue).HasMaxLength(512);
+        });
+
+        modelBuilder.Entity<DeadLetterEvent>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.Status);
+            e.HasIndex(x => x.CreatedAtUtc);
+            e.Property(x => x.EventType).HasMaxLength(32);
+            e.Property(x => x.Reason).HasMaxLength(1024);
+            e.Property(x => x.Status).HasMaxLength(16);
         });
     }
 }

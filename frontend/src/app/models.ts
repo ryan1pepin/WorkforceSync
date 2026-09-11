@@ -73,3 +73,27 @@ export interface Health {
   queueDepth: number;
   timestampUtc: string;
 }
+
+export interface Metrics {
+  eventsTotal: number;
+  applied: number;
+  rejected: number;
+  errors: number;
+  deadLetterPending: number;
+  eventsLastMinute: number;
+  queueDepth: number;
+  lastIngestAtUtc: string | null;
+  timestampUtc: string;
+}
+
+export interface DeadLetter {
+  id: number;
+  eventId: string;
+  eventType: string;
+  employeeId: string | null;
+  reason: string;
+  status: string; // Pending | Replayed | Discarded
+  createdAtUtc: string;
+  replayedAtUtc: string | null;
+  lastResult: string | null;
+}

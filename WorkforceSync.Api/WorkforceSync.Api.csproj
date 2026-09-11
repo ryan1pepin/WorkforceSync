@@ -19,4 +19,12 @@
     <ProjectReference Include="..\WorkforceSync.HcmSource\WorkforceSync.HcmSource.csproj" />
   </ItemGroup>
 
+  <!-- Copy the built Angular app into wwwroot so the API can serve it standalone. -->
+  <Target Name="CopyFrontend" AfterTargets="Build" Condition="Exists('..\frontend\dist\frontend')">
+    <ItemGroup>
+      <FrontendFiles Include="..\frontend\dist\frontend\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(FrontendFiles)" DestinationFolder="wwwroot\%(RecursiveDir)" SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>
