@@ -3,7 +3,7 @@ import { DatePipe, DecimalPipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { AuthService } from './auth.service';
 import { WorkforceService } from './workforce.service';
-import { AuditEntry, DeadLetter, Employee, EmployeeChange, Health, Metrics } from './models';
+import { AuditEntry, DeadLetter, Employee, EmployeeChange, Health, Metrics, Position } from './models';
 
 @Component({
   selector: 'app-dashboard',
@@ -40,7 +40,59 @@ import { AuditEntry, DeadLetter, Employee, EmployeeChange, Health, Metrics } fro
         </div>
       </header>
 
+      <!-- Tab navigation -->
+      <nav class="max-w-7xl mx-auto px-6 pt-6">
+        <div class="inline-flex items-center gap-1 bg-white rounded-xl shadow-md shadow-slate-200/50 border border-slate-100 p-1">
+          <button
+            (click)="setTab('overview')"
+            class="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+            [class.bg-blue-600]="tab() === 'overview'"
+            [class.text-white]="tab() === 'overview'"
+            [class.shadow-md]="tab() === 'overview'"
+            [class.text-slate-600]="tab() !== 'overview'"
+            [class.hover:bg-slate-100]="tab() !== 'overview'"
+          >Overview</button>
+          <button
+            (click)="setTab('workforce')"
+            class="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+            [class.bg-blue-600]="tab() === 'workforce'"
+            [class.text-white]="tab() === 'workforce'"
+            [class.shadow-md]="tab() === 'workforce'"
+            [class.text-slate-600]="tab() !== 'workforce'"
+            [class.hover:bg-slate-100]="tab() !== 'workforce'"
+          >Workforce</button>
+          <button
+            (click)="setTab('positions')"
+            class="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+            [class.bg-blue-600]="tab() === 'positions'"
+            [class.text-white]="tab() === 'positions'"
+            [class.shadow-md]="tab() === 'positions'"
+            [class.text-slate-600]="tab() !== 'positions'"
+            [class.hover:bg-slate-100]="tab() !== 'positions'"
+          >Positions</button>
+          <button
+            (click)="setTab('audit')"
+            class="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+            [class.bg-blue-600]="tab() === 'audit'"
+            [class.text-white]="tab() === 'audit'"
+            [class.shadow-md]="tab() === 'audit'"
+            [class.text-slate-600]="tab() !== 'audit'"
+            [class.hover:bg-slate-100]="tab() !== 'audit'"
+          >Audit Log</button>
+          <button
+            (click)="setTab('deadletter')"
+            class="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+            [class.bg-blue-600]="tab() === 'deadletter'"
+            [class.text-white]="tab() === 'deadletter'"
+            [class.shadow-md]="tab() === 'deadletter'"
+            [class.text-slate-600]="tab() !== 'deadletter'"
+            [class.hover:bg-slate-100]="tab() !== 'deadletter'"
+          >Dead Letter</button>
+        </div>
+      </nav>
+
       <main class="max-w-7xl mx-auto px-6 py-8 space-y-6">
+        @if (tab() === 'overview') {
         <!-- Health + stats -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           <div class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 border border-slate-100 p-5 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200">
@@ -98,7 +150,9 @@ import { AuditEntry, DeadLetter, Employee, EmployeeChange, Health, Metrics } fro
             </div>
           </div>
         }
+        }
 
+        @if (tab() === 'workforce') {
         <!-- Employees -->
         <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 border border-slate-100 overflow-hidden">
           <div class="px-6 py-4 border-b border-slate-100 flex flex-col gap-3 bg-gradient-to-r from-white to-slate-50/50">
@@ -151,12 +205,17 @@ import { AuditEntry, DeadLetter, Employee, EmployeeChange, Health, Metrics } fro
               <thead>
                 <tr class="text-left text-slate-500 border-b border-slate-100 bg-slate-50/50">
                   <th class="px-3 py-3"></th>
-                  <th class="px-6 py-3 font-medium">Name</th>
-                  <th class="px-6 py-3 font-medium">Job title</th>
-                  <th class="px-6 py-3 font-medium">Department</th>
-                  <th class="px-6 py-3 font-medium">Start date</th>
-                  <th class="px-6 py-3 font-medium text-right">Base salary</th>
-                  <th class="px-6 py-3 font-medium">Status</th>
+                  <th class="px-4 py-3 font-medium">Person #</th>
+                  <th class="px-4 py-3 font-medium">Name</th>
+                  <th class="px-4 py-3 font-medium">Job title</th>
+                  <th class="px-4 py-3 font-medium">Job</th>
+                  <th class="px-4 py-3 font-medium">Grade</th>
+                  <th class="px-4 py-3 font-medium">Department</th>
+                  <th class="px-4 py-3 font-medium">Location</th>
+                  <th class="px-4 py-3 font-medium">Supervisor</th>
+                  <th class="px-4 py-3 font-medium">Start date</th>
+                  <th class="px-4 py-3 font-medium text-right">Base salary</th>
+                  <th class="px-4 py-3 font-medium">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -172,19 +231,26 @@ import { AuditEntry, DeadLetter, Employee, EmployeeChange, Health, Metrics } fro
                         [class.rotate-90]="expandedId() === e.employeeId"
                       >▸</span>
                     </td>
-                    <td class="px-6 py-3.5">
+                    <td class="px-4 py-3.5 font-mono text-xs text-slate-500">{{ e.personNumber }}</td>
+                    <td class="px-4 py-3.5">
                       <div class="font-medium text-slate-800">{{ e.firstName }} {{ e.lastName }}</div>
                       <div class="text-xs text-slate-400">{{ e.email }}</div>
                     </td>
-                    <td class="px-6 py-3.5 text-slate-600">{{ e.jobTitle }}</td>
-                    <td class="px-6 py-3.5">
+                    <td class="px-4 py-3.5 text-slate-600">{{ e.jobTitle }}</td>
+                    <td class="px-4 py-3.5 text-slate-500">{{ e.job }}</td>
+                    <td class="px-4 py-3.5">
+                      <span class="inline-block rounded-md bg-indigo-50 text-indigo-600 px-2 py-0.5 text-xs font-medium">{{ e.grade }}</span>
+                    </td>
+                    <td class="px-4 py-3.5">
                       <span class="inline-block rounded-md bg-slate-100 text-slate-600 px-2 py-0.5 text-xs font-medium">{{ e.department }}</span>
                     </td>
-                    <td class="px-6 py-3.5 text-slate-600">{{ e.startDate | date:'mediumDate' }}</td>
-                    <td class="px-6 py-3.5 text-right text-slate-800 font-semibold">
+                    <td class="px-4 py-3.5 text-slate-500">{{ e.workLocation ?? '—' }}</td>
+                    <td class="px-4 py-3.5 text-slate-500">{{ e.supervisor ?? '—' }}</td>
+                    <td class="px-4 py-3.5 text-slate-600">{{ e.startDate | date:'mediumDate' }}</td>
+                    <td class="px-4 py-3.5 text-right text-slate-800 font-semibold">
                       {{ e.baseSalary | number }} <span class="text-xs text-slate-400 font-normal">{{ e.currency }}</span>
                     </td>
-                    <td class="px-6 py-3.5">
+                    <td class="px-4 py-3.5">
                       @if (e.isActive) {
                         <span class="inline-block rounded-full bg-green-100 text-green-700 px-2.5 py-0.5 text-xs font-semibold">Active</span>
                       } @else {
@@ -194,7 +260,7 @@ import { AuditEntry, DeadLetter, Employee, EmployeeChange, Health, Metrics } fro
                   </tr>
                   @if (expandedId() === e.employeeId) {
                     <tr class="bg-slate-50/60">
-                      <td colspan="7" class="px-6 py-4">
+                      <td colspan="12" class="px-6 py-4">
                         <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
                           Change history
                         </div>
@@ -210,12 +276,16 @@ import { AuditEntry, DeadLetter, Employee, EmployeeChange, Health, Metrics } fro
                                   <span
                                     class="inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold"
                                     [class.bg-blue-100]="c.eventType === 'Hire'"
-                                    [class.bg-indigo-100]="c.eventType === 'PositionChange'"
-                                    [class.bg-amber-100]="c.eventType === 'CompensationChange'"
+                                    [class.bg-indigo-100]="c.eventType === 'Transfer'"
+                                    [class.bg-amber-100]="c.eventType === 'PayChange'"
+                                    [class.bg-violet-100]="c.eventType === 'Promotion'"
+                                    [class.bg-teal-100]="c.eventType === 'Rehire'"
                                     [class.bg-red-100]="c.eventType === 'Termination'"
                                     [class.text-blue-700]="c.eventType === 'Hire'"
-                                    [class.text-indigo-700]="c.eventType === 'PositionChange'"
-                                    [class.text-amber-700]="c.eventType === 'CompensationChange'"
+                                    [class.text-indigo-700]="c.eventType === 'Transfer'"
+                                    [class.text-amber-700]="c.eventType === 'PayChange'"
+                                    [class.text-violet-700]="c.eventType === 'Promotion'"
+                                    [class.text-teal-700]="c.eventType === 'Rehire'"
                                     [class.text-red-700]="c.eventType === 'Termination'"
                                   >{{ c.eventType }}</span>
                                   <span class="text-xs text-slate-400 tabular-nums">{{ c.atUtc | date:'HH:mm:ss' }}</span>
@@ -242,13 +312,94 @@ import { AuditEntry, DeadLetter, Employee, EmployeeChange, Health, Metrics } fro
                     </tr>
                   }
                 } @empty {
-                  <tr><td colspan="7" class="px-6 py-10 text-center text-slate-400">No employees yet — waiting for the first hire event.</td></tr>
+                  <tr><td colspan="12" class="px-6 py-10 text-center text-slate-400">No employees yet — waiting for the first hire event.</td></tr>
                 }
               </tbody>
             </table>
           </div>
         </section>
+        }
 
+        @if (tab() === 'positions') {
+        <!-- Positions -->
+        <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 border border-slate-100 overflow-hidden">
+          <div class="px-6 py-4 border-b border-slate-100 flex flex-col gap-3 bg-gradient-to-r from-white to-slate-50/50">
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="font-semibold text-slate-800">Positions</h2>
+                <p class="text-xs text-slate-400">the job slots the HCM feed assigns people to — job, grade, department, location</p>
+              </div>
+              <span class="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-3 py-1">
+                {{ positions().length }} positions
+              </span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <input
+                type="search"
+                placeholder="Search position, job, department…"
+                class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 w-56"
+                [value]="posSearch()"
+                (input)="onPosSearch($any($event).target.value)"
+              />
+              <select
+                class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                [value]="posDepartment()"
+                (change)="onPosDepartment($any($event).target.value)"
+              >
+                <option value="">All departments</option>
+                @for (d of positionDepartments(); track d) {
+                  <option [value]="d">{{ d }}</option>
+                }
+              </select>
+              @if (hasPosFilters()) {
+                <button
+                  (click)="clearPosFilters()"
+                  class="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2"
+                >Clear</button>
+              }
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-slate-500 border-b border-slate-100 bg-slate-50/50">
+                  <th class="px-4 py-3 font-medium">Position</th>
+                  <th class="px-4 py-3 font-medium">Job</th>
+                  <th class="px-4 py-3 font-medium">Grade</th>
+                  <th class="px-4 py-3 font-medium">Department</th>
+                  <th class="px-4 py-3 font-medium">Location</th>
+                  <th class="px-4 py-3 font-medium">Supervisor</th>
+                  <th class="px-4 py-3 font-medium">Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (p of filteredPositions(); track p.positionId) {
+                  <tr class="border-b border-slate-50 hover:bg-blue-50/30 transition-colors">
+                    <td class="px-4 py-3.5">
+                      <div class="font-medium text-slate-800">{{ p.jobTitle }}</div>
+                      <div class="text-xs text-slate-400 font-mono">{{ p.positionId }}</div>
+                    </td>
+                    <td class="px-4 py-3.5 text-slate-600">{{ p.job }}</td>
+                    <td class="px-4 py-3.5">
+                      <span class="inline-block rounded-md bg-indigo-50 text-indigo-600 px-2 py-0.5 text-xs font-medium">{{ p.grade }}</span>
+                    </td>
+                    <td class="px-4 py-3.5">
+                      <span class="inline-block rounded-md bg-slate-100 text-slate-600 px-2 py-0.5 text-xs font-medium">{{ p.department }}</span>
+                    </td>
+                    <td class="px-4 py-3.5 text-slate-500">{{ p.location ?? '—' }}</td>
+                    <td class="px-4 py-3.5 text-slate-500">{{ p.supervisor ?? '—' }}</td>
+                    <td class="px-4 py-3.5 text-slate-500">{{ p.createdAtUtc | date:'mediumDate' }}</td>
+                  </tr>
+                } @empty {
+                  <tr><td colspan="7" class="px-6 py-10 text-center text-slate-400">No positions yet — they appear as the feed assigns people to roles.</td></tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+        }
+
+        @if (tab() === 'audit') {
         <!-- Audit log -->
         <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 border border-slate-100 overflow-hidden">
           <div class="px-6 py-4 border-b border-slate-100 flex flex-col gap-3 bg-gradient-to-r from-white to-slate-50/50">
@@ -279,8 +430,10 @@ import { AuditEntry, DeadLetter, Employee, EmployeeChange, Health, Metrics } fro
               >
                 <option value="">All event types</option>
                 <option value="Hire">Hire</option>
-                <option value="PositionChange">Position change</option>
-                <option value="CompensationChange">Comp change</option>
+                <option value="Transfer">Transfer</option>
+                <option value="PayChange">Pay change</option>
+                <option value="Promotion">Promotion</option>
+                <option value="Rehire">Rehire</option>
                 <option value="Termination">Termination</option>
               </select>
               <input
@@ -329,7 +482,9 @@ import { AuditEntry, DeadLetter, Employee, EmployeeChange, Health, Metrics } fro
             }
           </ul>
         </section>
+        }
 
+        @if (tab() === 'deadletter') {
         <!-- Dead-letter queue -->
         <section class="bg-white rounded-2xl shadow-lg shadow-slate-200/60 border border-slate-100 overflow-hidden">
           <div class="px-6 py-4 border-b border-slate-100 flex flex-col gap-3 bg-gradient-to-r from-white to-slate-50/50">
@@ -390,6 +545,7 @@ import { AuditEntry, DeadLetter, Employee, EmployeeChange, Health, Metrics } fro
             }
           </ul>
         </section>
+        }
 
         <footer class="text-center text-xs text-slate-400 pb-4">
           WorkforceSync · mock Oracle HCM → ATOM feed → Channel&lt;T&gt; queue → idempotent processor → Angular
@@ -408,6 +564,11 @@ export class Dashboard implements OnInit, OnDestroy {
   readonly health = signal<Health | null>(null);
   readonly metrics = signal<Metrics | null>(null);
   readonly deadLetters = signal<DeadLetter[]>([]);
+  readonly positions = signal<Position[]>([]);
+
+  // Active tab.
+  readonly tab = signal<'overview' | 'workforce' | 'positions' | 'audit' | 'deadletter'>('overview');
+  setTab(t: 'overview' | 'workforce' | 'positions' | 'audit' | 'deadletter'): void { this.tab.set(t); }
 
   // Expanded employee row + its change history.
   readonly expandedId = signal<string | null>(null);
@@ -419,17 +580,43 @@ export class Dashboard implements OnInit, OnDestroy {
   readonly empDepartment = signal('');
   readonly empStatus = signal(''); // '' | 'active' | 'terminated'
 
+  // Positions table filters.
+  readonly posSearch = signal('');
+  readonly posDepartment = signal('');
+
   // Audit table filters.
   readonly auditStatus = signal(''); // '' | 'Success' | 'Rejected' | 'Error'
-  readonly auditType = signal('');   // '' | 'Hire' | 'PositionChange' | 'CompensationChange' | 'Termination'
+  readonly auditType = signal('');   // '' | 'Hire' | 'Transfer' | 'PayChange' | 'Promotion' | 'Rehire' | 'Termination'
   readonly auditSearch = signal('');
 
   /** Distinct departments currently in the employee list (for the filter dropdown). */
   readonly departments = () =>
     [...new Set(this.employees().map((e) => e.department))].sort();
 
+  /** Distinct departments currently in the position list (for the filter dropdown). */
+  readonly positionDepartments = () =>
+    [...new Set(this.positions().map((p) => p.department))].sort();
+
+  /** Positions filtered by the search box + department dropdown. */
+  readonly filteredPositions = () => {
+    const q = this.posSearch().trim().toLowerCase();
+    const dept = this.posDepartment();
+    return this.positions().filter((p) => {
+      if (dept && p.department !== dept) return false;
+      if (!q) return true;
+      return (
+        p.jobTitle.toLowerCase().includes(q) ||
+        p.job.toLowerCase().includes(q) ||
+        p.department.toLowerCase().includes(q) ||
+        p.positionId.toLowerCase().includes(q)
+      );
+    });
+  };
+
   readonly hasEmpFilters = () =>
     this.empSearch() !== '' || this.empDepartment() !== '' || this.empStatus() !== '';
+  readonly hasPosFilters = () =>
+    this.posSearch() !== '' || this.posDepartment() !== '';
   readonly hasAuditFilters = () =>
     this.auditStatus() !== '' || this.auditType() !== '' || this.auditSearch() !== '';
 
@@ -525,6 +712,12 @@ export class Dashboard implements OnInit, OnDestroy {
         /* ignore */
       },
     });
+    this.workforce.positions().subscribe({
+      next: (items) => this.positions.set(items),
+      error: () => {
+        /* ignore */
+      },
+    });
   }
 
   // ── Employee table filters ────────────────────────────────────────────────
@@ -534,6 +727,13 @@ export class Dashboard implements OnInit, OnDestroy {
   clearEmpFilters(): void {
     this.empSearch.set(''); this.empDepartment.set(''); this.empStatus.set('');
     this.refresh();
+  }
+
+  // ── Positions table filters ───────────────────────────────────────────────
+  onPosSearch(v: string): void { this.posSearch.set(v); }
+  onPosDepartment(v: string): void { this.posDepartment.set(v); }
+  clearPosFilters(): void {
+    this.posSearch.set(''); this.posDepartment.set('');
   }
 
   // ── Audit table filters ───────────────────────────────────────────────────

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security;
 using System.Text;
 using System.Xml;
 
@@ -32,14 +33,23 @@ public static class AtomFeedGenerator
             sb.Append("<content type=\"application/xml\">");
             sb.Append($"<event xmlns=\"{HcmNs}\">");
             AppendField(sb, "employeeId", e.EmployeeId);
+            AppendField(sb, "personNumber", e.PersonNumber);
             AppendField(sb, "firstName", e.FirstName);
             AppendField(sb, "lastName", e.LastName);
             AppendField(sb, "email", e.Email);
+            AppendField(sb, "legalEmployer", e.LegalEmployer);
             AppendField(sb, "positionId", e.PositionId);
+            AppendField(sb, "job", e.Job);
+            AppendField(sb, "grade", e.Grade);
             AppendField(sb, "jobTitle", e.JobTitle);
             AppendField(sb, "department", e.Department);
+            AppendField(sb, "workLocation", e.WorkLocation);
+            AppendField(sb, "supervisor", e.Supervisor);
+            AppendField(sb, "employmentType", e.EmploymentType);
+            AppendField(sb, "payBasis", e.PayBasis);
             AppendField(sb, "startDate", e.StartDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
             AppendField(sb, "endDate", e.EndDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+            AppendField(sb, "terminationReason", e.TerminationReason);
             AppendField(sb, "baseSalary", e.BaseSalary?.ToString(CultureInfo.InvariantCulture));
             AppendField(sb, "currency", e.Currency);
             sb.Append("</event>");
@@ -58,6 +68,8 @@ public static class AtomFeedGenerator
             return;
         }
 
-        sb.Append($"<{name}>{value}</{name}>");
+        // Escape XML special characters (&, <, >) so values like "Data & Analytics"
+        // don't break the feed document.
+        sb.Append($"<{name}>{SecurityElement.Escape(value)}</{name}>");
     }
 }

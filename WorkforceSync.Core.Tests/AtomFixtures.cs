@@ -34,27 +34,45 @@ internal static class AtomFixtures
         string type,
         string updated,
         string? employeeId,
+        string? personNumber = null,
         string? firstName = null,
         string? lastName = null,
         string? email = null,
+        string? legalEmployer = null,
         string? positionId = null,
+        string? job = null,
+        string? grade = null,
         string? jobTitle = null,
         string? department = null,
+        string? workLocation = null,
+        string? supervisor = null,
+        string? employmentType = null,
+        string? payBasis = null,
         string? startDate = null,
         string? endDate = null,
+        string? terminationReason = null,
         string? baseSalary = null,
         string? currency = null)
     {
         var fields = new List<string>();
         AddField(fields, "employeeId", employeeId);
+        AddField(fields, "personNumber", personNumber);
         AddField(fields, "firstName", firstName);
         AddField(fields, "lastName", lastName);
         AddField(fields, "email", email);
+        AddField(fields, "legalEmployer", legalEmployer);
         AddField(fields, "positionId", positionId);
+        AddField(fields, "job", job);
+        AddField(fields, "grade", grade);
         AddField(fields, "jobTitle", jobTitle);
         AddField(fields, "department", department);
+        AddField(fields, "workLocation", workLocation);
+        AddField(fields, "supervisor", supervisor);
+        AddField(fields, "employmentType", employmentType);
+        AddField(fields, "payBasis", payBasis);
         AddField(fields, "startDate", startDate);
         AddField(fields, "endDate", endDate);
+        AddField(fields, "terminationReason", terminationReason);
         AddField(fields, "baseSalary", baseSalary);
         AddField(fields, "currency", currency);
 
@@ -86,14 +104,23 @@ internal static class AtomFixtures
         Type: WorkforceEventType.Hire,
         OccurredAt: new DateTime(2026, 9, 1, 9, 0, 0, DateTimeKind.Utc),
         EmployeeId: "emp-100",
+        PersonNumber: "P-1001",
         FirstName: "Ada",
         LastName: "Lovelace",
         Email: "ada@example.com",
+        LegalEmployer: "Acme Corp",
         PositionId: "pos-1",
+        Job: "Software Engineer",
+        Grade: "G5",
         JobTitle: "Engineer",
         Department: "Engineering",
+        WorkLocation: "Atlanta, GA",
+        Supervisor: "Grace Hopper",
+        EmploymentType: "Regular",
+        PayBasis: "Annual",
         StartDate: new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc),
         EndDate: null,
+        TerminationReason: null,
         BaseSalary: 120000m,
         Currency: "USD");
 
@@ -103,48 +130,75 @@ internal static class AtomFixtures
         Type: WorkforceEventType.Termination,
         OccurredAt: new DateTime(2026, 9, 2, 9, 0, 0, DateTimeKind.Utc),
         EmployeeId: "emp-100",
+        PersonNumber: null,
         FirstName: null,
         LastName: null,
         Email: null,
+        LegalEmployer: null,
         PositionId: null,
+        Job: null,
+        Grade: null,
         JobTitle: null,
         Department: null,
+        WorkLocation: null,
+        Supervisor: null,
+        EmploymentType: null,
+        PayBasis: null,
         StartDate: null,
         EndDate: new DateTime(2026, 9, 5, 0, 0, 0, DateTimeKind.Utc),
+        TerminationReason: "Layoff",
         BaseSalary: null,
         Currency: null);
 
-    /// <summary>A valid PositionChange event.</summary>
+    /// <summary>A valid Transfer event (position change).</summary>
     public static WorkforceEvent ValidPositionChange => new(
         EventId: "evt-3",
-        Type: WorkforceEventType.PositionChange,
+        Type: WorkforceEventType.Transfer,
         OccurredAt: new DateTime(2026, 9, 3, 9, 0, 0, DateTimeKind.Utc),
         EmployeeId: "emp-100",
+        PersonNumber: null,
         FirstName: null,
         LastName: null,
         Email: null,
+        LegalEmployer: null,
         PositionId: "pos-2",
+        Job: "Senior Software Engineer",
+        Grade: "G6",
         JobTitle: "Senior Engineer",
         Department: "Platform",
+        WorkLocation: null,
+        Supervisor: null,
+        EmploymentType: null,
+        PayBasis: null,
         StartDate: null,
         EndDate: null,
+        TerminationReason: null,
         BaseSalary: null,
         Currency: null);
 
-    /// <summary>A valid CompensationChange event.</summary>
+    /// <summary>A valid PayChange event (compensation change).</summary>
     public static WorkforceEvent ValidCompensationChange => new(
         EventId: "evt-4",
-        Type: WorkforceEventType.CompensationChange,
+        Type: WorkforceEventType.PayChange,
         OccurredAt: new DateTime(2026, 9, 4, 9, 0, 0, DateTimeKind.Utc),
         EmployeeId: "emp-100",
+        PersonNumber: null,
         FirstName: null,
         LastName: null,
         Email: null,
+        LegalEmployer: null,
         PositionId: null,
+        Job: null,
+        Grade: null,
         JobTitle: null,
         Department: null,
+        WorkLocation: null,
+        Supervisor: null,
+        EmploymentType: null,
+        PayBasis: null,
         StartDate: null,
         EndDate: null,
+        TerminationReason: null,
         BaseSalary: 135000m,
         Currency: "USD");
 }

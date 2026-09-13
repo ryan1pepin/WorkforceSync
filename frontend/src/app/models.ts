@@ -14,25 +14,37 @@ export interface AuthResponse {
 
 export interface Employee {
   employeeId: string;
+  personNumber: string;
   firstName: string;
   lastName: string;
   email: string;
+  legalEmployer: string;
   positionId: string;
+  job: string;
+  grade: string;
   jobTitle: string;
   department: string;
+  workLocation: string | null;
+  supervisor: string | null;
+  employmentType: string | null;
+  payBasis: string | null;
   startDate: string;
   baseSalary: number;
   currency: string;
   isActive: boolean;
   terminationDate: string | null;
+  terminationReason: string | null;
   updatedAtUtc: string;
 }
 
 export interface Position {
   positionId: string;
+  job: string;
+  grade: string;
   jobTitle: string;
   department: string;
   location: string | null;
+  supervisor: string | null;
   createdAtUtc: string;
 }
 

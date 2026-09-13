@@ -35,17 +35,26 @@ public class RefreshToken
 public class Employee
 {
     public string EmployeeId { get; set; } = null!;
+    public string PersonNumber { get; set; } = null!;
     public string FirstName { get; set; } = null!;
     public string LastName { get; set; } = null!;
     public string Email { get; set; } = null!;
+    public string LegalEmployer { get; set; } = null!;
     public string PositionId { get; set; } = null!;
+    public string Job { get; set; } = null!;
+    public string Grade { get; set; } = null!;
     public string JobTitle { get; set; } = null!;
     public string Department { get; set; } = null!;
+    public string WorkLocation { get; set; } = null!;
+    public string Supervisor { get; set; } = null!;
+    public string EmploymentType { get; set; } = null!;
+    public string PayBasis { get; set; } = null!;
     public DateTime StartDate { get; set; }
     public decimal BaseSalary { get; set; }
     public string Currency { get; set; } = null!;
     public bool IsActive { get; set; }
     public DateTime? TerminationDate { get; set; }
+    public string? TerminationReason { get; set; }
     public DateTime UpdatedAtUtc { get; set; }
 }
 
@@ -63,9 +72,12 @@ public class ProcessedEvent
 public class Position
 {
     public string PositionId { get; set; } = null!;
+    public string Job { get; set; } = null!;
+    public string Grade { get; set; } = null!;
     public string JobTitle { get; set; } = null!;
     public string Department { get; set; } = null!;
     public string? Location { get; set; }
+    public string? Supervisor { get; set; }
     public DateTime CreatedAtUtc { get; set; }
 }
 

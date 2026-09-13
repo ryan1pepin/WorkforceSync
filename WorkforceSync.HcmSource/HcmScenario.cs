@@ -5,7 +5,7 @@ namespace WorkforceSync.HcmSource;
 /// <summary>
 /// An endless, varied workforce-activity stream for the mock HCM. Starts with a
 /// few hires already in the system, then — every <see cref="StepSeconds"/> —
-/// emits a weighted-random event (hire, promotion, comp change, termination)
+/// emits a weighted-random event (hire, promotion, pay change, termination)
 /// against a growing internal roster.
 ///
 /// It is <em>not</em> a fixed script: the roster evolves (people get promoted,
@@ -70,13 +70,21 @@ public sealed class HcmScenario
 
     private void EmitRandomEvent(DateTime now)
     {
-        // Occasionally emit a stale/out-of-order event — a role or comp change
+        // Occasionally emit a stale/out-of-order event — a transfer or pay change
         // for someone who has already left. Real feeds have these (late or
         // duplicated messages), and the pipeline must reject them. This is what
-        // exercises the "role change after termination" guard.
+        // exercises the "change after termination" guard.
         if (_terminated.Count > 0 && _rng.Next(100) < 8)
         {
             EmitStaleChangeForTerminated(now);
+            return;
+        }
+
+        // Occasionally rehire someone who left — a real HCM "Rehire" event that
+        // reactivates the person with a fresh assignment.
+        if (_terminated.Count > 0 && _rng.Next(100) < 6)
+        {
+            EmitRehire(now);
             return;
         }
 
@@ -95,7 +103,7 @@ public sealed class HcmScenario
         }
         else if (roll < 80)
         {
-            EmitCompChange(now);
+            EmitPayChange(now);
         }
         else if (canTerminate)
         {
@@ -108,7 +116,7 @@ public sealed class HcmScenario
     }
 
     /// <summary>
-    /// A stale event: a position or comp change targeting a terminated employee.
+    /// A stale event: a transfer or pay change targeting a terminated employee.
     /// The consumer rejects it (a new role for a terminated person is a rehire,
     /// which must arrive as a Hire with pay).
     /// </summary>
@@ -117,24 +125,26 @@ public sealed class HcmScenario
         var e = Pick(_terminated);
         if (_rng.Next(2) == 0)
         {
-            // Stale position change.
+            // Stale transfer.
             var newTitle = TitleFor(e.Department, Math.Min(e.Level + 1, MaxLevel));
             _events.Add(new HcmEvent(
                 Id: NextEventId(),
-                Type: "PositionChange",
+                Type: "Transfer",
                 OccurredAtUtc: now,
                 EmployeeId: e.EmployeeId,
                 PositionId: $"pos-{100 + _eventCounter}",
+                Job: JobFor(e.Department),
+                Grade: GradeFor(Math.Min(e.Level + 1, MaxLevel)),
                 JobTitle: newTitle,
                 Department: e.Department));
         }
         else
         {
-            // Stale comp change.
+            // Stale pay change.
             var newSalary = Math.Round(e.BaseSalary * (1m + Pct(0.04m, 0.10m)), 0, MidpointRounding.AwayFromZero);
             _events.Add(new HcmEvent(
                 Id: NextEventId(),
-                Type: "CompensationChange",
+                Type: "PayChange",
                 OccurredAtUtc: now,
                 EmployeeId: e.EmployeeId,
                 BaseSalary: newSalary,
@@ -155,19 +165,30 @@ public sealed class HcmScenario
         var posId = $"pos-{100 + _eventCounter}";
         var title = TitleFor(dept, level);
 
-        _roster.Add(new RosterEntry(empId, first, last, email, posId, title, dept, salary, level));
+        _roster.Add(new RosterEntry(
+            empId, PersonNumberFor(empId), first, last, email,
+            Pick(LegalEmployers), posId, JobFor(dept), GradeFor(level),
+            title, dept, Pick(WorkLocations), Pick(Supervisors), salary, level));
 
         _events.Add(new HcmEvent(
             Id: NextEventId(),
             Type: "Hire",
             OccurredAtUtc: now,
             EmployeeId: empId,
+            PersonNumber: PersonNumberFor(empId),
             FirstName: first,
             LastName: last,
             Email: email,
+            LegalEmployer: Pick(LegalEmployers),
             PositionId: posId,
+            Job: JobFor(dept),
+            Grade: GradeFor(level),
             JobTitle: title,
             Department: dept,
+            WorkLocation: Pick(WorkLocations),
+            Supervisor: Pick(Supervisors),
+            EmploymentType: _rng.Next(100) < 10 ? "Temporary" : "Regular",
+            PayBasis: "Annual",
             StartDate: now.Date,
             BaseSalary: salary,
             Currency: "USD"));
@@ -178,8 +199,8 @@ public sealed class HcmScenario
         var e = Pick(_roster);
         if (e.Level >= MaxLevel)
         {
-            // Already at the top — a promotion becomes a comp bump instead.
-            EmitCompChange(now);
+            // Already at the top — a promotion becomes a pay bump instead.
+            EmitPayChange(now);
             return;
         }
 
@@ -190,24 +211,28 @@ public sealed class HcmScenario
 
         _events.Add(new HcmEvent(
             Id: NextEventId(),
-            Type: "PositionChange",
+            Type: "Promotion",
             OccurredAtUtc: now,
             EmployeeId: e.EmployeeId,
             PositionId: e.PositionId,
+            Job: JobFor(e.Department),
+            Grade: GradeFor(e.Level),
             JobTitle: e.JobTitle,
             Department: e.Department,
+            WorkLocation: e.WorkLocation,
+            Supervisor: e.Supervisor,
             BaseSalary: e.BaseSalary,
             Currency: "USD"));
     }
 
-    private void EmitCompChange(DateTime now)
+    private void EmitPayChange(DateTime now)
     {
         var e = Pick(_roster);
         e.BaseSalary = Math.Round(e.BaseSalary * (1m + Pct(0.04m, 0.10m)), 0, MidpointRounding.AwayFromZero);
 
         _events.Add(new HcmEvent(
             Id: NextEventId(),
-            Type: "CompensationChange",
+            Type: "PayChange",
             OccurredAtUtc: now,
             EmployeeId: e.EmployeeId,
             BaseSalary: e.BaseSalary,
@@ -225,7 +250,48 @@ public sealed class HcmScenario
             Type: "Termination",
             OccurredAtUtc: now,
             EmployeeId: e.EmployeeId,
-            EndDate: now.Date));
+            EndDate: now.Date,
+            TerminationReason: Pick(TerminationReasons)));
+    }
+
+    /// <summary>
+    /// A rehire: a previously terminated employee comes back with a fresh
+    /// assignment (entry level, new position, current salary band).
+    /// </summary>
+    private void EmitRehire(DateTime now)
+    {
+        var e = Pick(_terminated);
+        _terminated.Remove(e);
+
+        e.Level = 0; // rehire at entry level
+        e.Grade = GradeFor(e.Level);
+        e.JobTitle = TitleFor(e.Department, e.Level);
+        e.PositionId = $"pos-{100 + _eventCounter}";
+        e.BaseSalary = SalaryFor(e.Department, e.Level);
+        _roster.Add(e);
+
+        _events.Add(new HcmEvent(
+            Id: NextEventId(),
+            Type: "Rehire",
+            OccurredAtUtc: now,
+            EmployeeId: e.EmployeeId,
+            PersonNumber: e.PersonNumber,
+            FirstName: e.FirstName,
+            LastName: e.LastName,
+            Email: e.Email,
+            LegalEmployer: e.LegalEmployer,
+            PositionId: e.PositionId,
+            Job: e.Job,
+            Grade: e.Grade,
+            JobTitle: e.JobTitle,
+            Department: e.Department,
+            WorkLocation: e.WorkLocation,
+            Supervisor: e.Supervisor,
+            EmploymentType: "Regular",
+            PayBasis: "Annual",
+            StartDate: now.Date,
+            BaseSalary: e.BaseSalary,
+            Currency: "USD"));
     }
 
     private void SeedHire(string empId, string first, string last, string dept, int level, decimal salary)
@@ -233,19 +299,30 @@ public sealed class HcmScenario
         var email = $"{first}.{last}@corp.example".ToLowerInvariant();
         var posId = $"pos-{100 + _eventCounter}";
         var title = TitleFor(dept, level);
-        _roster.Add(new RosterEntry(empId, first, last, email, posId, title, dept, salary, level));
+        _roster.Add(new RosterEntry(
+            empId, PersonNumberFor(empId), first, last, email,
+            Pick(LegalEmployers), posId, JobFor(dept), GradeFor(level),
+            title, dept, Pick(WorkLocations), Pick(Supervisors), salary, level));
 
         _events.Add(new HcmEvent(
             Id: NextEventId(),
             Type: "Hire",
             OccurredAtUtc: DateTime.UtcNow,
             EmployeeId: empId,
+            PersonNumber: PersonNumberFor(empId),
             FirstName: first,
             LastName: last,
             Email: email,
+            LegalEmployer: Pick(LegalEmployers),
             PositionId: posId,
+            Job: JobFor(dept),
+            Grade: GradeFor(level),
             JobTitle: title,
             Department: dept,
+            WorkLocation: Pick(WorkLocations),
+            Supervisor: Pick(Supervisors),
+            EmploymentType: "Regular",
+            PayBasis: "Annual",
             StartDate: DateTime.UtcNow.Date,
             BaseSalary: salary,
             Currency: "USD"));
@@ -276,6 +353,27 @@ public sealed class HcmScenario
     }
 
     private const int MaxLevel = 3;
+
+    /// <summary>The HCM person number for an employee id (e.g. emp-1001 → 0001001).</summary>
+    private static string PersonNumberFor(string empId)
+    {
+        var digits = empId.Replace("emp-", "");
+        return digits.PadLeft(7, '0');
+    }
+
+    /// <summary>The HCM job (role family) for a department.</summary>
+    private static string JobFor(string dept) => dept switch
+    {
+        "Engineering" => "Software Engineering",
+        "Analytics" => "Data & Analytics",
+        "Operations" => "Operations",
+        "Finance" => "Finance",
+        "Product" => "Product Management",
+        _ => "General",
+    };
+
+    /// <summary>The pay grade for a level (G-1 entry … G-4 principal).</summary>
+    private static string GradeFor(int level) => $"G-{level + 1}";
 
     private static string TitleFor(string dept, int level) => dept switch
     {
@@ -328,6 +426,37 @@ public sealed class HcmScenario
         "Engineering", "Analytics", "Operations", "Finance", "Product",
     };
 
+    private static readonly string[] LegalEmployers =
+    {
+        "Apex Industries LLC",
+        "Apex Industries (UK) Ltd",
+    };
+
+    private static readonly string[] WorkLocations =
+    {
+        "Atlanta, GA",
+        "Raleigh, NC",
+        "Austin, TX",
+        "Remote — US",
+        "London, UK",
+    };
+
+    private static readonly string[] Supervisors =
+    {
+        "Dana Whitfield",
+        "Marcus Chen",
+        "Priya Raman",
+        "Tom Okafor",
+        "Elena Vasquez",
+    };
+
+    private static readonly string[] TerminationReasons =
+    {
+        "Voluntary Resignation",
+        "Layoff — Restructuring",
+        "End of Contract",
+    };
+
     private static readonly string[] FirstNames =
     {
         "Katherine", "Margaret", "Clara", "Rosalind", "Hedy", "Barbara",
@@ -346,16 +475,23 @@ public sealed class HcmScenario
 
     /// <summary>A person currently active in the mock organization.</summary>
     private sealed class RosterEntry(
-        string employeeId, string firstName, string lastName, string email,
-        string positionId, string jobTitle, string department, decimal baseSalary, int level)
+        string employeeId, string personNumber, string firstName, string lastName, string email,
+        string legalEmployer, string positionId, string job, string grade, string jobTitle,
+        string department, string workLocation, string supervisor, decimal baseSalary, int level)
     {
         public string EmployeeId { get; } = employeeId;
+        public string PersonNumber { get; } = personNumber;
         public string FirstName { get; } = firstName;
         public string LastName { get; } = lastName;
         public string Email { get; } = email;
+        public string LegalEmployer { get; } = legalEmployer;
         public string PositionId { get; set; } = positionId;
+        public string Job { get; } = job;
+        public string Grade { get; set; } = grade;
         public string JobTitle { get; set; } = jobTitle;
         public string Department { get; } = department;
+        public string WorkLocation { get; } = workLocation;
+        public string Supervisor { get; } = supervisor;
         public decimal BaseSalary { get; set; } = baseSalary;
         public int Level { get; set; } = level;
     }

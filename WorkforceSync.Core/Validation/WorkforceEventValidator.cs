@@ -45,11 +45,18 @@ public sealed class WorkforceEventValidator
             case WorkforceEventType.Termination:
                 ValidateTermination(evt, errors);
                 break;
-            case WorkforceEventType.PositionChange:
-                ValidatePositionChange(evt, errors);
+            case WorkforceEventType.Transfer:
+                ValidateTransfer(evt, errors);
                 break;
-            case WorkforceEventType.CompensationChange:
-                ValidateCompensationChange(evt, errors);
+            case WorkforceEventType.PayChange:
+                ValidatePayChange(evt, errors);
+                break;
+            case WorkforceEventType.Promotion:
+                ValidatePromotion(evt, errors);
+                break;
+            case WorkforceEventType.Rehire:
+                // A rehire carries the same required payload as a hire.
+                ValidateHire(evt, errors);
                 break;
         }
 
@@ -58,11 +65,19 @@ public sealed class WorkforceEventValidator
 
     private static void ValidateHire(WorkforceEvent evt, List<string> errors)
     {
+        Require(evt.PersonNumber, "PersonNumber", errors);
         Require(evt.FirstName, "FirstName", errors);
         Require(evt.LastName, "LastName", errors);
+        Require(evt.LegalEmployer, "LegalEmployer", errors);
         Require(evt.PositionId, "PositionId", errors);
+        Require(evt.Job, "Job", errors);
+        Require(evt.Grade, "Grade", errors);
         Require(evt.JobTitle, "JobTitle", errors);
         Require(evt.Department, "Department", errors);
+        Require(evt.WorkLocation, "WorkLocation", errors);
+        Require(evt.Supervisor, "Supervisor", errors);
+        Require(evt.EmploymentType, "EmploymentType", errors);
+        Require(evt.PayBasis, "PayBasis", errors);
         Require(evt.Currency, "Currency", errors);
 
         if (string.IsNullOrWhiteSpace(evt.Email))
@@ -98,17 +113,17 @@ public sealed class WorkforceEventValidator
         }
     }
 
-    private static void ValidatePositionChange(WorkforceEvent evt, List<string> errors)
+    private static void ValidateTransfer(WorkforceEvent evt, List<string> errors)
     {
         Require(evt.PositionId, "PositionId", errors);
         Require(evt.JobTitle, "JobTitle", errors);
     }
 
-    private static void ValidateCompensationChange(WorkforceEvent evt, List<string> errors)
+    private static void ValidatePayChange(WorkforceEvent evt, List<string> errors)
     {
         if (evt.BaseSalary is null)
         {
-            errors.Add("BaseSalary is required for a compensation change.");
+            errors.Add("BaseSalary is required for a pay change.");
         }
         else if (evt.BaseSalary <= 0m)
         {
@@ -116,6 +131,13 @@ public sealed class WorkforceEventValidator
         }
 
         Require(evt.Currency, "Currency", errors);
+    }
+
+    private static void ValidatePromotion(WorkforceEvent evt, List<string> errors)
+    {
+        Require(evt.PositionId, "PositionId", errors);
+        Require(evt.JobTitle, "JobTitle", errors);
+        Require(evt.Grade, "Grade", errors);
     }
 
     private static void Require(string? value, string field, List<string> errors)

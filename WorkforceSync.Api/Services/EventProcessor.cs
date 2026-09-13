@@ -59,17 +59,27 @@ public sealed class EventProcessor
             entity.FirstName = employee.FirstName;
             entity.LastName = employee.LastName;
             entity.Email = employee.Email;
+            entity.PersonNumber = employee.PersonNumber;
+            entity.LegalEmployer = employee.LegalEmployer;
             entity.PositionId = employee.PositionId;
+            entity.Job = employee.Job;
+            entity.Grade = employee.Grade;
             entity.JobTitle = employee.JobTitle;
             entity.Department = employee.Department;
+            entity.WorkLocation = employee.WorkLocation;
+            entity.Supervisor = employee.Supervisor;
+            entity.EmploymentType = employee.EmploymentType;
+            entity.PayBasis = employee.PayBasis;
             entity.StartDate = employee.StartDate;
             entity.BaseSalary = employee.BaseSalary;
             entity.Currency = employee.Currency;
             entity.IsActive = employee.IsActive;
             entity.TerminationDate = employee.TerminationDate;
+            entity.TerminationReason = employee.TerminationReason;
             entity.UpdatedAtUtc = DateTime.UtcNow;
 
-            if (evt.Type is WorkforceEventType.Hire or WorkforceEventType.PositionChange)
+            if (evt.Type is WorkforceEventType.Hire or WorkforceEventType.Transfer
+                or WorkforceEventType.Promotion or WorkforceEventType.Rehire)
             {
                 await UpsertPositionAsync(evt, ct);
             }
@@ -212,18 +222,38 @@ public sealed class EventProcessor
             position = new Position
             {
                 PositionId = evt.PositionId,
+                Job = evt.Job ?? "General",
+                Grade = evt.Grade ?? "G-1",
                 JobTitle = evt.JobTitle,
                 Department = evt.Department ?? "Unknown",
+                Location = evt.WorkLocation,
+                Supervisor = evt.Supervisor,
                 CreatedAtUtc = DateTime.UtcNow,
             };
             _db.Positions.Add(position);
         }
         else
         {
+            if (!string.IsNullOrEmpty(evt.Job))
+            {
+                position.Job = evt.Job;
+            }
+            if (!string.IsNullOrEmpty(evt.Grade))
+            {
+                position.Grade = evt.Grade;
+            }
             position.JobTitle = evt.JobTitle;
             if (!string.IsNullOrEmpty(evt.Department))
             {
                 position.Department = evt.Department;
+            }
+            if (!string.IsNullOrEmpty(evt.WorkLocation))
+            {
+                position.Location = evt.WorkLocation;
+            }
+            if (!string.IsNullOrEmpty(evt.Supervisor))
+            {
+                position.Supervisor = evt.Supervisor;
             }
         }
     }
@@ -241,10 +271,18 @@ public sealed class EventProcessor
         if (existing is null)
         {
             // New hire — everything is a new value.
+            changes.Add(new Change("Person number", null, employee.PersonNumber));
             changes.Add(new Change("Name", null, $"{employee.FirstName} {employee.LastName}"));
             changes.Add(new Change("Email", null, employee.Email));
+            changes.Add(new Change("Legal employer", null, employee.LegalEmployer));
+            changes.Add(new Change("Job", null, employee.Job));
+            changes.Add(new Change("Grade", null, employee.Grade));
             changes.Add(new Change("Job title", null, employee.JobTitle));
             changes.Add(new Change("Department", null, employee.Department));
+            changes.Add(new Change("Work location", null, employee.WorkLocation));
+            changes.Add(new Change("Supervisor", null, employee.Supervisor));
+            changes.Add(new Change("Employment type", null, employee.EmploymentType));
+            changes.Add(new Change("Pay basis", null, employee.PayBasis));
             changes.Add(new Change("Start date", null, employee.StartDate.ToString("yyyy-MM-dd")));
             changes.Add(new Change("Base salary", null, FormatSalary(employee.BaseSalary, employee.Currency)));
             changes.Add(new Change("Status", null, "Active"));
@@ -255,9 +293,25 @@ public sealed class EventProcessor
         {
             changes.Add(new Change("Job title", existing.JobTitle, employee.JobTitle));
         }
+        if (existing.Job != employee.Job)
+        {
+            changes.Add(new Change("Job", existing.Job, employee.Job));
+        }
+        if (existing.Grade != employee.Grade)
+        {
+            changes.Add(new Change("Grade", existing.Grade, employee.Grade));
+        }
         if (existing.Department != employee.Department)
         {
             changes.Add(new Change("Department", existing.Department, employee.Department));
+        }
+        if (existing.WorkLocation != employee.WorkLocation)
+        {
+            changes.Add(new Change("Work location", existing.WorkLocation, employee.WorkLocation));
+        }
+        if (existing.Supervisor != employee.Supervisor)
+        {
+            changes.Add(new Change("Supervisor", existing.Supervisor, employee.Supervisor));
         }
         if (existing.BaseSalary != employee.BaseSalary)
         {
@@ -273,9 +327,15 @@ public sealed class EventProcessor
         }
         if (employee.TerminationDate is not null && existing.TerminationDate != employee.TerminationDate)
         {
-            changes.Add(new Change("Termination date",
+            changes.Add(new Change("Last working day",
                 existing.TerminationDate?.ToString("yyyy-MM-dd"),
                 employee.TerminationDate.Value.ToString("yyyy-MM-dd")));
+        }
+        if (employee.TerminationReason is not null && existing.TerminationReason != employee.TerminationReason)
+        {
+            changes.Add(new Change("Termination reason",
+                existing.TerminationReason,
+                employee.TerminationReason));
         }
 
         return changes;
@@ -302,17 +362,27 @@ public sealed class EventProcessor
             WorkforceEventType.Hire =>
                 $"{name} — hired as {employee.JobTitle} ({employee.Department}), {money(employee.BaseSalary, employee.Currency)}",
 
-            WorkforceEventType.PositionChange =>
-                $"{name} — {existing?.JobTitle} → {employee.JobTitle}" +
+            WorkforceEventType.Transfer =>
+                $"{name} — transferred {existing?.JobTitle} → {employee.JobTitle}" +
+                (employee.Department != (existing?.Department ?? "")
+                    ? $", {existing!.Department} → {employee.Department}"
+                    : ""),
+
+            WorkforceEventType.Promotion =>
+                $"{name} — promoted to {employee.JobTitle} ({employee.Grade})" +
                 (employee.BaseSalary != (existing?.BaseSalary ?? 0m)
                     ? $", {money(existing!.BaseSalary, existing!.Currency)} → {money(employee.BaseSalary, employee.Currency)}"
                     : ""),
 
-            WorkforceEventType.CompensationChange =>
+            WorkforceEventType.PayChange =>
                 $"{name} — pay {money(existing!.BaseSalary, existing!.Currency)} → {money(employee.BaseSalary, employee.Currency)}",
 
             WorkforceEventType.Termination =>
-                $"{name} — terminated {employee.TerminationDate:yyyy-MM-dd}",
+                $"{name} — terminated {employee.TerminationDate:yyyy-MM-dd}" +
+                (employee.TerminationReason is not null ? $" ({employee.TerminationReason})" : ""),
+
+            WorkforceEventType.Rehire =>
+                $"{name} — rehired as {employee.JobTitle} ({employee.Department}), {money(employee.BaseSalary, employee.Currency)}",
 
             _ => $"{name} — {evt.Type}",
         };
@@ -329,16 +399,25 @@ public sealed class EventProcessor
 
         return new Core.Models.Employee(
             entity.EmployeeId,
+            entity.PersonNumber,
             entity.FirstName,
             entity.LastName,
             entity.Email,
+            entity.LegalEmployer,
             entity.PositionId,
+            entity.Job,
+            entity.Grade,
             entity.JobTitle,
             entity.Department,
+            entity.WorkLocation,
+            entity.Supervisor,
+            entity.EmploymentType,
+            entity.PayBasis,
             entity.StartDate,
             entity.BaseSalary,
             entity.Currency,
             entity.IsActive,
-            entity.TerminationDate);
+            entity.TerminationDate,
+            entity.TerminationReason);
     }
 }

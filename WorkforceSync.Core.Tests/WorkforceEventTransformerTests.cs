@@ -14,12 +14,20 @@ public class WorkforceEventTransformerTests
         var emp = _transformer.Apply(AtomFixtures.ValidHire);
 
         Assert.Equal("emp-100", emp.EmployeeId);
+        Assert.Equal("P-1001", emp.PersonNumber);
         Assert.Equal("Ada", emp.FirstName);
         Assert.Equal("Lovelace", emp.LastName);
         Assert.Equal("ada@example.com", emp.Email);
+        Assert.Equal("Acme Corp", emp.LegalEmployer);
         Assert.Equal("pos-1", emp.PositionId);
+        Assert.Equal("Software Engineer", emp.Job);
+        Assert.Equal("G5", emp.Grade);
         Assert.Equal("Engineer", emp.JobTitle);
         Assert.Equal("Engineering", emp.Department);
+        Assert.Equal("Atlanta, GA", emp.WorkLocation);
+        Assert.Equal("Grace Hopper", emp.Supervisor);
+        Assert.Equal("Regular", emp.EmploymentType);
+        Assert.Equal("Annual", emp.PayBasis);
         Assert.Equal(120000m, emp.BaseSalary);
         Assert.Equal("USD", emp.Currency);
         Assert.True(emp.IsActive);
@@ -131,5 +139,67 @@ public class WorkforceEventTransformerTests
         var hired = _transformer.Apply(AtomFixtures.ValidHire);
         var changed = _transformer.Apply(AtomFixtures.ValidPositionChange, hired);
         Assert.Equal(120000m, changed.BaseSalary); // unchanged
+    }
+
+    [Fact]
+    public void Apply_Promotion_UpdatesPositionAndPay()
+    {
+        var hired = _transformer.Apply(AtomFixtures.ValidHire);
+        var promoted = _transformer.Apply(
+            AtomFixtures.ValidPositionChange with
+            {
+                Type = WorkforceEventType.Promotion,
+                BaseSalary = 145000m,
+            }, hired);
+
+        Assert.Equal("pos-2", promoted.PositionId);
+        Assert.Equal("Senior Engineer", promoted.JobTitle);
+        Assert.Equal(145000m, promoted.BaseSalary);
+        Assert.True(promoted.IsActive);
+    }
+
+    [Fact]
+    public void Apply_Promotion_OnTerminated_ThrowsValidation()
+    {
+        var hired = _transformer.Apply(AtomFixtures.ValidHire);
+        var terminated = _transformer.Apply(AtomFixtures.ValidTermination, hired);
+
+        var ex = Assert.Throws<WorkforceEventValidationException>(
+            () => _transformer.Apply(
+                AtomFixtures.ValidPositionChange with { Type = WorkforceEventType.Promotion },
+                terminated));
+        Assert.Contains("rehire", ex.Message);
+    }
+
+    [Fact]
+    public void Apply_Rehire_OnTerminated_Reactivates()
+    {
+        var hired = _transformer.Apply(AtomFixtures.ValidHire);
+        var terminated = _transformer.Apply(AtomFixtures.ValidTermination, hired);
+        Assert.False(terminated.IsActive);
+
+        var rehired = _transformer.Apply(
+            AtomFixtures.ValidHire with
+            {
+                Type = WorkforceEventType.Rehire,
+                StartDate = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc),
+            }, terminated);
+
+        Assert.True(rehired.IsActive);
+        Assert.Equal(new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc), rehired.StartDate);
+        // Identity preserved from the prior employment.
+        Assert.Equal("Ada", rehired.FirstName);
+        Assert.Equal("P-1001", rehired.PersonNumber);
+    }
+
+    [Fact]
+    public void Apply_Rehire_OnActive_ThrowsValidation()
+    {
+        var hired = _transformer.Apply(AtomFixtures.ValidHire);
+
+        var ex = Assert.Throws<WorkforceEventValidationException>(
+            () => _transformer.Apply(
+                AtomFixtures.ValidHire with { Type = WorkforceEventType.Rehire }, hired));
+        Assert.Contains("already active", ex.Message);
     }
 }

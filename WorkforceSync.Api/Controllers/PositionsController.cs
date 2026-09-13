@@ -59,9 +59,12 @@ public class PositionsController : ControllerBase
         var pos = new Position
         {
             PositionId = id,
+            Job = request.Job.Trim(),
+            Grade = request.Grade.Trim(),
             JobTitle = request.JobTitle.Trim(),
             Department = request.Department.Trim(),
             Location = request.Location?.Trim(),
+            Supervisor = request.Supervisor?.Trim(),
             CreatedAtUtc = DateTime.UtcNow,
         };
 
@@ -72,5 +75,5 @@ public class PositionsController : ControllerBase
     }
 
     private static PositionDto ToDto(Position p) => new(
-        p.PositionId, p.JobTitle, p.Department, p.Location, p.CreatedAtUtc);
+        p.PositionId, p.Job, p.Grade, p.JobTitle, p.Department, p.Location, p.Supervisor, p.CreatedAtUtc);
 }

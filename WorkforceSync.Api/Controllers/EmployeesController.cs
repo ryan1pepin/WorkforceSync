@@ -142,12 +142,20 @@ public class EmployeesController : ControllerBase
         var emp = new Employee
         {
             EmployeeId = id,
+            PersonNumber = request.PersonNumber.Trim(),
             FirstName = request.FirstName.Trim(),
             LastName = request.LastName.Trim(),
             Email = request.Email.Trim().ToLowerInvariant(),
+            LegalEmployer = request.LegalEmployer.Trim(),
             PositionId = request.PositionId.Trim(),
+            Job = request.Job.Trim(),
+            Grade = request.Grade.Trim(),
             JobTitle = request.JobTitle.Trim(),
             Department = request.Department.Trim(),
+            WorkLocation = request.WorkLocation.Trim(),
+            Supervisor = request.Supervisor.Trim(),
+            EmploymentType = request.EmploymentType.Trim(),
+            PayBasis = request.PayBasis.Trim(),
             StartDate = request.StartDate,
             BaseSalary = request.BaseSalary,
             Currency = request.Currency.Trim().ToUpperInvariant(),
@@ -173,12 +181,20 @@ public class EmployeesController : ControllerBase
             return NotFound();
         }
 
+        if (request.PersonNumber is not null) emp.PersonNumber = request.PersonNumber.Trim();
         if (request.FirstName is not null) emp.FirstName = request.FirstName.Trim();
         if (request.LastName is not null) emp.LastName = request.LastName.Trim();
         if (request.Email is not null) emp.Email = request.Email.Trim().ToLowerInvariant();
+        if (request.LegalEmployer is not null) emp.LegalEmployer = request.LegalEmployer.Trim();
         if (request.PositionId is not null) emp.PositionId = request.PositionId.Trim();
+        if (request.Job is not null) emp.Job = request.Job.Trim();
+        if (request.Grade is not null) emp.Grade = request.Grade.Trim();
         if (request.JobTitle is not null) emp.JobTitle = request.JobTitle.Trim();
         if (request.Department is not null) emp.Department = request.Department.Trim();
+        if (request.WorkLocation is not null) emp.WorkLocation = request.WorkLocation.Trim();
+        if (request.Supervisor is not null) emp.Supervisor = request.Supervisor.Trim();
+        if (request.EmploymentType is not null) emp.EmploymentType = request.EmploymentType.Trim();
+        if (request.PayBasis is not null) emp.PayBasis = request.PayBasis.Trim();
         if (request.StartDate is not null) emp.StartDate = request.StartDate.Value;
         if (request.BaseSalary is not null) emp.BaseSalary = request.BaseSalary.Value;
         if (request.Currency is not null) emp.Currency = request.Currency.Trim().ToUpperInvariant();
@@ -211,7 +227,8 @@ public class EmployeesController : ControllerBase
     }
 
     private static EmployeeDto ToDto(Employee e) => new(
-        e.EmployeeId, e.FirstName, e.LastName, e.Email, e.PositionId, e.JobTitle,
-        e.Department, e.StartDate, e.BaseSalary, e.Currency, e.IsActive,
-        e.TerminationDate, e.UpdatedAtUtc);
+        e.EmployeeId, e.PersonNumber, e.FirstName, e.LastName, e.Email, e.LegalEmployer,
+        e.PositionId, e.Job, e.Grade, e.JobTitle, e.Department, e.WorkLocation,
+        e.Supervisor, e.EmploymentType, e.PayBasis, e.StartDate, e.BaseSalary, e.Currency,
+        e.IsActive, e.TerminationDate, e.TerminationReason, e.UpdatedAtUtc);
 }

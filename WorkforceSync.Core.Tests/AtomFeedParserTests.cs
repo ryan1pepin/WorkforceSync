@@ -63,7 +63,7 @@ public class AtomFeedParserTests
     }
 
     [Fact]
-    public void Parse_AllFourEventTypes_ParsesEach()
+    public void Parse_AllSixEventTypes_ParsesEach()
     {
         var xml = AtomFixtures.Feed(
             AtomFixtures.Entry("e1", "Hire", "2026-09-01T09:00:00Z", "emp-1",
@@ -71,25 +71,49 @@ public class AtomFeedParserTests
                 jobTitle: "T", department: "D", startDate: "2026-09-01T00:00:00Z",
                 baseSalary: "100", currency: "USD"),
             AtomFixtures.Entry("e2", "Termination", "2026-09-02T09:00:00Z", "emp-1"),
-            AtomFixtures.Entry("e3", "PositionChange", "2026-09-03T09:00:00Z", "emp-1",
+            AtomFixtures.Entry("e3", "Transfer", "2026-09-03T09:00:00Z", "emp-1",
                 positionId: "p2", jobTitle: "T2"),
-            AtomFixtures.Entry("e4", "CompensationChange", "2026-09-04T09:00:00Z", "emp-1",
-                baseSalary: "150", currency: "USD"));
+            AtomFixtures.Entry("e4", "PayChange", "2026-09-04T09:00:00Z", "emp-1",
+                baseSalary: "150", currency: "USD"),
+            AtomFixtures.Entry("e5", "Promotion", "2026-09-05T09:00:00Z", "emp-1",
+                positionId: "p3", jobTitle: "T3", baseSalary: "160", currency: "USD"),
+            AtomFixtures.Entry("e6", "Rehire", "2026-09-06T09:00:00Z", "emp-1",
+                firstName: "A", lastName: "B", email: "a@b.com", positionId: "p1",
+                jobTitle: "T", department: "D", startDate: "2026-09-06T00:00:00Z",
+                baseSalary: "110", currency: "USD"));
 
         var events = _parser.Parse(xml);
 
-        Assert.Equal(4, events.Count);
+        Assert.Equal(6, events.Count);
         Assert.Equal(WorkforceEventType.Hire, events[0].Type);
         Assert.Equal(WorkforceEventType.Termination, events[1].Type);
-        Assert.Equal(WorkforceEventType.PositionChange, events[2].Type);
-        Assert.Equal(WorkforceEventType.CompensationChange, events[3].Type);
+        Assert.Equal(WorkforceEventType.Transfer, events[2].Type);
+        Assert.Equal(WorkforceEventType.PayChange, events[3].Type);
+        Assert.Equal(WorkforceEventType.Promotion, events[4].Type);
+        Assert.Equal(WorkforceEventType.Rehire, events[5].Type);
+    }
+
+    [Fact]
+    public void Parse_EscapedAmpersand_RoundTripsToLiteral()
+    {
+        // The generator XML-escapes values (e.g. "Data & Analytics" → "Data &amp; Analytics").
+        // The parser must hand back the literal ampersand.
+        var xml = AtomFixtures.Feed(
+            AtomFixtures.Entry("e1", "Hire", "2026-09-01T09:00:00Z", "emp-1",
+                firstName: "A", lastName: "B", email: "a@b.com", positionId: "p1",
+                job: "Data &amp; Analytics", jobTitle: "T", department: "D",
+                startDate: "2026-09-01T00:00:00Z", baseSalary: "100", currency: "USD"));
+
+        var events = _parser.Parse(xml);
+
+        Assert.Equal("Data & Analytics", events[0].Job);
     }
 
     [Fact]
     public void Parse_UnknownEventType_Throws()
     {
         var xml = AtomFixtures.Feed(
-            AtomFixtures.Entry("e1", "Promotion", "2026-09-01T09:00:00Z", "emp-1"));
+            AtomFixtures.Entry("e1", "UnknownEvent", "2026-09-01T09:00:00Z", "emp-1"));
 
         var ex = Assert.Throws<AtomFeedParseException>(() => _parser.Parse(xml));
         Assert.Contains("unknown event type", ex.Message, StringComparison.OrdinalIgnoreCase);
