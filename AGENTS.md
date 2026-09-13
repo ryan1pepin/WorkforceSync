@@ -1,6 +1,6 @@
 # AGENTS.md — WorkforceSync
 
-Guidance for AI coding agents (Codex, Copilot, etc.) working in this repo.
+Conventions and context for working in this repo.
 This file is the source of truth for conventions.
 
 ## What this project is
@@ -10,8 +10,8 @@ polls the feed, transforms + validates payloads into normalized entities, queues
 through a `Channel<T>`, and persists via EF Core (SQLite). A JWT-secured REST API
 exposes the data. An Angular 20 dashboard displays it.
 
-This is a **portfolio/interview project** — code quality and clarity matter more than
-cleverness. Every file should be explainable in an interview.
+This is a production-style integration project — code quality and clarity matter
+more than cleverness. Every file should be easy to explain and easy to extend.
 
 ## Stack
 - Backend: .NET 10 (`net10.0`), C# latest, ASP.NET Core Web API (controllers),

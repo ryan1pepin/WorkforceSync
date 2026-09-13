@@ -9,10 +9,9 @@ APIs, and a live Angular dashboard.
 Built with C# and Angular to work through the integration patterns I use in production
 — ATOM feeds, OAuth/JWT, message queuing, and middleware — end to end.
 
-[![CI](https://github.com/YOUR_GITHUB_USERNAME/workforcesync/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_GITHUB_USERNAME/workforcesync/actions/workflows/ci.yml)
 ![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet)
 ![Angular 20](https://img.shields.io/badge/Angular-20-DD0031?logo=angular)
-![Tests](https://img.shields.io/badge/tests-28%20passing-2ea44f)
+![Tests](https://img.shields.io/badge/tests-33%20passing-2ea44f)
 
 ## Demo
 
@@ -161,10 +160,14 @@ the dashboard update live.
 ## Tests
 
 ```bash
-dotnet test          # C# unit + integration tests (28 passing)
+dotnet test          # C# unit + integration tests (33 passing)
 cd frontend && npm test   # Angular (Karma/Jasmine)
 ```
 
 ## Conventions
 
-See `AGENTS.md` for the code conventions used across the repo.
+- C#: nullable reference types, file-scoped namespaces, records for DTOs,
+  constructor injection, no `async void` or blocking calls in library code.
+- Angular: standalone components, signals for state, functional interceptors
+  and guards, `@if`/`@for` control flow, Tailwind v4.
+- Tests must pass before a change is done: `dotnet test` and `cd frontend && npm test`.
