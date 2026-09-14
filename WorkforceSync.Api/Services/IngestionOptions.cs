@@ -9,9 +9,11 @@ namespace WorkforceSync.Api.Services;
 /// <param name="PollIntervalSeconds">How often the feed is polled.</param>
 /// <param name="QueueCapacity">Bounded channel capacity (backpressure).</param>
 /// <param name="ScenarioStepSeconds">Seconds between scripted mock-HCM events (demo pacing).</param>
+/// <param name="ScenarioCycleSeconds">How long one mock-HCM cycle lasts before it resets and starts over.</param>
 public sealed record IngestionOptions(
     bool Enabled,
     string FeedUrl,
     int PollIntervalSeconds,
     int QueueCapacity,
-    int ScenarioStepSeconds = 15);
+    int ScenarioStepSeconds = 15,
+    int ScenarioCycleSeconds = 300);

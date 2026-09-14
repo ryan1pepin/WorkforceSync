@@ -1,3 +1,4 @@
+using WorkforceSync.Api.Data;
 using WorkforceSync.Core.Models;
 
 namespace WorkforceSync.Api.Services;
@@ -13,6 +14,13 @@ namespace WorkforceSync.Api.Services;
 /// logged and retried on the next interval — the pipeline rides it out. A
 /// malformed feed is logged to the audit trail and skipped. One bad event
 /// never wedges the pipeline (the processor isolates per-event failures).
+///
+/// Cycle reset: the mock HCM feed runs in bounded cycles (default 5 minutes)
+/// and then clears itself and starts over. The feed's event count only grows
+/// within a cycle and drops back to the seed count on a reset, so a decrease
+/// is a reliable "new cycle" signal. When the poller sees it, it clears its
+/// idempotency set and wipes the pipeline state so the dashboard restarts
+/// from a clean slate in lockstep with the feed.
 /// </summary>
 public sealed class IngestionService : BackgroundService
 {
@@ -23,6 +31,7 @@ public sealed class IngestionService : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<IngestionService> _logger;
     private readonly HashSet<string> _seen = new();
+    private int _lastEventCount;
 
     public IngestionService(
         HcmFeedClient feedClient,
@@ -78,6 +87,18 @@ public sealed class IngestionService : BackgroundService
             try
             {
                 var events = await _feedClient.FetchEventsAsync(ct);
+
+                // The feed's event count only grows within a cycle and drops
+                // back to the seed count when the scenario resets. A decrease
+                // is therefore a reliable "new cycle" signal: clear our
+                // idempotency set and the pipeline state so the dashboard
+                // restarts from a clean slate in lockstep with the feed.
+                if (events.Count < _lastEventCount)
+                {
+                    await HandleCycleResetAsync(ct);
+                }
+                _lastEventCount = events.Count;
+
                 var fresh = events.Where(e => _seen.Add(e.EventId)).ToList();
 
                 foreach (var evt in fresh)
@@ -102,6 +123,34 @@ public sealed class IngestionService : BackgroundService
             }
         }
         while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false));
+    }
+
+    /// <summary>
+    /// Handles a feed cycle reset: the mock HCM has rolled over to a fresh
+    /// cycle, so we clear our idempotency set (the new cycle reuses the same
+    /// evt-0, evt-1, ... ids) and wipe the pipeline state (employees,
+    /// positions, audit, change log, dead letters) so the dashboard starts
+    /// from a clean slate.
+    ///
+    /// A processor that is mid-flight on an old-cycle event may still commit
+    /// after the clear, leaving at most a couple of stale rows; that is
+    /// harmless for the demo and is overwritten as the new cycle's events
+    /// arrive. SQLite serializes the concurrent writes, so there is no
+    /// corruption.
+    /// </summary>
+    private async Task HandleCycleResetAsync(CancellationToken ct)
+    {
+        _logger.LogInformation(
+            "Feed rolled over to a new cycle — clearing pipeline state and restarting.");
+
+        _seen.Clear();
+
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.ResetPipelineStateAsync(ct);
+
+        _status.LastIngestAtUtc = DateTime.UtcNow;
+        _logger.LogInformation("Cycle reset complete: cleared pipeline state.");
     }
 
     /// <summary>Drains the queue, processing each event in its own scope.</summary>

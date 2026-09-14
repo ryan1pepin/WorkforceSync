@@ -3,36 +3,50 @@ using System.Globalization;
 namespace WorkforceSync.HcmSource;
 
 /// <summary>
-/// An endless, varied workforce-activity stream for the mock HCM. Starts with a
-/// few hires already in the system, then — every <see cref="StepSeconds"/> —
-/// emits a weighted-random event (hire, promotion, pay change, termination)
+/// A bounded, varied workforce-activity stream for the mock HCM. Each cycle
+/// lasts <see cref="CycleSeconds"/> (default 5 minutes): it starts with a few
+/// hires already in the system, then — every <see cref="StepSeconds"/> — emits
+/// a weighted-random event (hire, promotion, pay change, termination, rehire)
 /// against a growing internal roster.
 ///
-/// It is <em>not</em> a fixed script: the roster evolves (people get promoted,
-/// paid more, leave, and new people join), so the feed keeps producing fresh,
-/// different events forever. A fixed RNG seed keeps the sequence reproducible
-/// (the demo is repeatable) without it being a simple loop of the same actions.
+/// When the cycle elapses the scenario <em>resets from scratch</em> — fresh
+/// roster, fresh event ids, and a new RNG seed — and the cycle repeats
+/// perpetually. The consumer clears its state at the same moment, so the
+/// dashboard always shows a small, fresh, realistic population instead of an
+/// unbounded backlog.
 ///
-/// Every event gets a unique, monotonic id so the consumer's idempotency check
-/// treats each one as new.
+/// Names are drawn without replacement from the name pools, so no two people
+/// in the feed ever share a name (a real HCM would never show five "Ada
+/// Allens"). A fixed seed per cycle keeps each cycle reproducible.
+///
+/// Every event gets a unique, monotonic id within its cycle, so the
+/// consumer's idempotency check treats each one as new.
 /// </summary>
 public sealed class HcmScenario
 {
     private readonly List<HcmEvent> _events = new();
     private readonly List<RosterEntry> _roster = new();
     private readonly List<RosterEntry> _terminated = new();
-    private readonly Random _rng;
+    private readonly List<string> _usedNames = new();
     private readonly object _gate = new();
+    private Random _rng;
     private int _eventCounter;
+    private int _cycleNumber;
+    private DateTime _cycleStart;
     private DateTime _nextEventAt;
 
     /// <summary>Seconds between generated events.</summary>
     public int StepSeconds { get; }
 
-    public HcmScenario(int stepSeconds = 15)
+    /// <summary>How long one full cycle lasts before the scenario resets.</summary>
+    public int CycleSeconds { get; }
+
+    public HcmScenario(int stepSeconds = 15, int cycleSeconds = 300)
     {
         StepSeconds = Math.Max(1, stepSeconds);
+        CycleSeconds = Math.Max(StepSeconds * 2, cycleSeconds);
         _rng = new Random(1337); // fixed seed → reproducible but varied
+        _cycleStart = DateTime.UtcNow;
 
         // Seed: three hires already in the system at t=0.
         SeedHire("emp-1001", "Ada", "Lovelace", "Engineering", level: 1, salary: 118000m);
@@ -44,7 +58,9 @@ public sealed class HcmScenario
 
     /// <summary>
     /// The current set of events. Advances the scenario based on elapsed time
-    /// before returning, so repeated calls keep growing the feed.
+    /// before returning, so repeated calls keep growing the feed — until the
+    /// cycle elapses, at which point the scenario resets and the feed starts
+    /// over from scratch.
     /// </summary>
     public IReadOnlyList<HcmEvent> CurrentEvents
     {
@@ -61,6 +77,13 @@ public sealed class HcmScenario
     private void Advance()
     {
         var now = DateTime.UtcNow;
+
+        // Cycle elapsed — clear everything and start over from scratch.
+        if (now - _cycleStart >= TimeSpan.FromSeconds(CycleSeconds))
+        {
+            Reset(now);
+        }
+
         while (now >= _nextEventAt)
         {
             EmitRandomEvent(now);
@@ -68,13 +91,36 @@ public sealed class HcmScenario
         }
     }
 
+    /// <summary>
+    /// Clears the roster, the event history, and the used-name set, then
+    /// re-seeds the starting hires. A fresh RNG seed per cycle keeps each
+    /// cycle reproducible while making successive cycles different.
+    /// </summary>
+    private void Reset(DateTime now)
+    {
+        _events.Clear();
+        _roster.Clear();
+        _terminated.Clear();
+        _usedNames.Clear();
+        _eventCounter = 0;
+        _cycleNumber++;
+        _rng = new Random(1337 + _cycleNumber);
+        _cycleStart = now;
+        _nextEventAt = now;
+
+        SeedHire("emp-1001", "Ada", "Lovelace", "Engineering", level: 1, salary: 118000m);
+        SeedHire("emp-1002", "Grace", "Hopper", "Engineering", level: 1, salary: 124000m);
+        SeedHire("emp-1003", "Alan", "Turing", "Analytics", level: 1, salary: 131000m);
+    }
+
     private void EmitRandomEvent(DateTime now)
     {
         // Occasionally emit a stale/out-of-order event — a transfer or pay change
         // for someone who has already left. Real feeds have these (late or
         // duplicated messages), and the pipeline must reject them. This is what
-        // exercises the "change after termination" guard.
-        if (_terminated.Count > 0 && _rng.Next(100) < 8)
+        // exercises the "change after termination" guard and keeps the dead-letter
+        // queue populated so the replay/discard path is always demonstrable.
+        if (_terminated.Count > 0 && _rng.Next(100) < 18)
         {
             EmitStaleChangeForTerminated(now);
             return;
@@ -154,8 +200,7 @@ public sealed class HcmScenario
 
     private void EmitHire(DateTime now)
     {
-        var first = Pick(FirstNames);
-        var last = Pick(LastNames);
+        var (first, last) = NextUniqueName();
         var dept = Pick(Departments);
         var level = 0; // new hires start at entry level
         var salary = SalaryFor(dept, level);
@@ -164,11 +209,13 @@ public sealed class HcmScenario
         var email = $"{first}.{last}{_eventCounter}@corp.example".ToLowerInvariant();
         var posId = $"pos-{100 + _eventCounter}";
         var title = TitleFor(dept, level);
+        var employmentType = _rng.Next(100) < 10 ? "Temporary" : "Regular";
 
         _roster.Add(new RosterEntry(
             empId, PersonNumberFor(empId), first, last, email,
             Pick(LegalEmployers), posId, JobFor(dept), GradeFor(level),
-            title, dept, Pick(WorkLocations), Pick(Supervisors), salary, level));
+            title, dept, Pick(WorkLocations), Pick(Supervisors), salary, level,
+            employmentType));
 
         _events.Add(new HcmEvent(
             Id: NextEventId(),
@@ -187,7 +234,7 @@ public sealed class HcmScenario
             Department: dept,
             WorkLocation: Pick(WorkLocations),
             Supervisor: Pick(Supervisors),
-            EmploymentType: _rng.Next(100) < 10 ? "Temporary" : "Regular",
+            EmploymentType: employmentType,
             PayBasis: "Annual",
             StartDate: now.Date,
             BaseSalary: salary,
@@ -245,13 +292,20 @@ public sealed class HcmScenario
         _roster.Remove(e);
         _terminated.Add(e);
 
+        // The dismissal reason must match the person's employment type: a
+        // "contract ending" only makes sense for a contractor (Temporary),
+        // while resignation and layoff apply to regular employees.
+        var reason = e.EmploymentType == "Temporary"
+            ? "End of Contract"
+            : Pick(RegularTerminationReasons);
+
         _events.Add(new HcmEvent(
             Id: NextEventId(),
             Type: "Termination",
             OccurredAtUtc: now,
             EmployeeId: e.EmployeeId,
             EndDate: now.Date,
-            TerminationReason: Pick(TerminationReasons)));
+            TerminationReason: reason));
     }
 
     /// <summary>
@@ -268,6 +322,7 @@ public sealed class HcmScenario
         e.JobTitle = TitleFor(e.Department, e.Level);
         e.PositionId = $"pos-{100 + _eventCounter}";
         e.BaseSalary = SalaryFor(e.Department, e.Level);
+        e.EmploymentType = "Regular"; // the rehire event carries Regular — keep the roster in sync
         _roster.Add(e);
 
         _events.Add(new HcmEvent(
@@ -296,13 +351,17 @@ public sealed class HcmScenario
 
     private void SeedHire(string empId, string first, string last, string dept, int level, decimal salary)
     {
+        // Reserve the name so a later hire can't be drawn with the same one.
+        _usedNames.Add(first + " " + last);
+
         var email = $"{first}.{last}@corp.example".ToLowerInvariant();
         var posId = $"pos-{100 + _eventCounter}";
         var title = TitleFor(dept, level);
         _roster.Add(new RosterEntry(
             empId, PersonNumberFor(empId), first, last, email,
             Pick(LegalEmployers), posId, JobFor(dept), GradeFor(level),
-            title, dept, Pick(WorkLocations), Pick(Supervisors), salary, level));
+            title, dept, Pick(WorkLocations), Pick(Supervisors), salary, level,
+            "Regular"));
 
         _events.Add(new HcmEvent(
             Id: NextEventId(),
@@ -328,9 +387,39 @@ public sealed class HcmScenario
             Currency: "USD"));
     }
 
-    private string NextEventId() => $"evt-{_eventCounter++}";
+    // Event ids are globally unique across cycles (the cycle number is baked
+    // in) so the consumer's idempotency check can never confuse an old-cycle
+    // event with a new-cycle one that reuses the same sequence number.
+    private string NextEventId() => $"evt-{_cycleNumber}-{_eventCounter++}";
 
     private T Pick<T>(IReadOnlyList<T> list) => list[_rng.Next(list.Count)];
+
+    /// <summary>
+    /// Draws a first + last name that no one in the current cycle has used.
+    /// Names are drawn without replacement, so the feed never contains two
+    /// people with the same name.
+    /// </summary>
+    private (string First, string Last) NextUniqueName()
+    {
+        for (var attempt = 0; attempt < 500; attempt++)
+        {
+            var f = Pick(FirstNames);
+            var l = Pick(LastNames);
+            var key = f + " " + l;
+            if (!_usedNames.Contains(key))
+            {
+                _usedNames.Add(key);
+                return (f, l);
+            }
+        }
+
+        // Pools exhausted (only possible after ~576 hires) — fall back to a
+        // counter-suffixed name so the feed stays valid rather than throwing.
+        var fbFirst = Pick(FirstNames);
+        var fbLast = Pick(LastNames);
+        _usedNames.Add($"{fbFirst} {fbLast} {_eventCounter}");
+        return (fbFirst, fbLast);
+    }
 
     private decimal Pct(decimal min, decimal max) =>
         (decimal)_rng.NextDouble() * (max - min) + min;
@@ -450,11 +539,10 @@ public sealed class HcmScenario
         "Elena Vasquez",
     };
 
-    private static readonly string[] TerminationReasons =
+    private static readonly string[] RegularTerminationReasons =
     {
         "Voluntary Resignation",
         "Layoff — Restructuring",
-        "End of Contract",
     };
 
     private static readonly string[] FirstNames =
@@ -477,7 +565,8 @@ public sealed class HcmScenario
     private sealed class RosterEntry(
         string employeeId, string personNumber, string firstName, string lastName, string email,
         string legalEmployer, string positionId, string job, string grade, string jobTitle,
-        string department, string workLocation, string supervisor, decimal baseSalary, int level)
+        string department, string workLocation, string supervisor, decimal baseSalary, int level,
+        string employmentType)
     {
         public string EmployeeId { get; } = employeeId;
         public string PersonNumber { get; } = personNumber;
@@ -494,5 +583,6 @@ public sealed class HcmScenario
         public string Supervisor { get; } = supervisor;
         public decimal BaseSalary { get; set; } = baseSalary;
         public int Level { get; set; } = level;
+        public string EmploymentType { get; set; } = employmentType;
     }
 }

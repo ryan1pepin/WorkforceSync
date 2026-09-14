@@ -150,6 +150,33 @@ public class AppDbContext : DbContext
     public DbSet<EmployeeChangeLog> EmployeeChangeLog => Set<EmployeeChangeLog>();
     public DbSet<DeadLetterEvent> DeadLetterEvents => Set<DeadLetterEvent>();
 
+    /// <summary>
+    /// Clears all pipeline state — employees, positions, processed-event
+    /// markers, audit log, change log, and dead letters — so the dashboard
+    /// starts from a clean slate. Used when the mock HCM feed resets its
+    /// cycle and the consumer must follow. Auth data (users, refresh tokens)
+    /// is intentionally left untouched.
+    /// </summary>
+    public async Task ResetPipelineStateAsync(CancellationToken ct = default)
+    {
+        // Materialize each set (so the entities are tracked) and remove them.
+        var deadLetters = await DeadLetterEvents.ToListAsync(ct);
+        var changeLog = await EmployeeChangeLog.ToListAsync(ct);
+        var auditLog = await IntegrationAuditLog.ToListAsync(ct);
+        var processed = await ProcessedEvents.ToListAsync(ct);
+        var positions = await Positions.ToListAsync(ct);
+        var employees = await Employees.ToListAsync(ct);
+
+        DeadLetterEvents.RemoveRange(deadLetters);
+        EmployeeChangeLog.RemoveRange(changeLog);
+        IntegrationAuditLog.RemoveRange(auditLog);
+        ProcessedEvents.RemoveRange(processed);
+        Positions.RemoveRange(positions);
+        Employees.RemoveRange(employees);
+
+        await SaveChangesAsync(ct);
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>(e =>

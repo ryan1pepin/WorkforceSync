@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\WorkforceSync.Core\WorkforceSync.Core.csproj" />
+    <ProjectReference Include="..\WorkforceSync.HcmSource\WorkforceSync.HcmSource.csproj" />
   </ItemGroup>
 
 </Project>

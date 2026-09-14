@@ -103,7 +103,7 @@ var app = builder.Build();
 HcmFeedServer? hcmServer = null;
 if (ingestion.Enabled && app.Environment.IsDevelopment())
 {
-    var scenario = new HcmScenario(ingestion.ScenarioStepSeconds);
+    var scenario = new HcmScenario(ingestion.ScenarioStepSeconds, ingestion.ScenarioCycleSeconds);
     var feedPort = new Uri(ingestion.FeedUrl).Port;
     try
     {

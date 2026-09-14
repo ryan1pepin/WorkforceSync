@@ -11,7 +11,7 @@ Built with C# and Angular to work through the integration patterns I use in prod
 
 ![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet)
 ![Angular 20](https://img.shields.io/badge/Angular-20-DD0031?logo=angular)
-![Tests](https://img.shields.io/badge/tests-33%20passing-2ea44f)
+![Tests](https://img.shields.io/badge/tests-37%20passing-2ea44f)
 
 ## Demo
 
@@ -35,10 +35,13 @@ data, and an Angular dashboard shows it live.
 
 The feed is *not* a fixed script — it's a weighted-random stream that keeps evolving
 (people get promoted, paid more, leave, and new people join), so the pipeline is
-exercised against a realistic, unbounded workload. It also occasionally emits a
-**stale event** (a comp or role change for someone who already left), which the
-processor correctly **rejects** — exactly the kind of late/duplicated message real
-feeds produce.
+exercised against a realistic, varied workload. It runs in **bounded cycles** (5
+minutes by default): when a cycle elapses the feed clears and starts over, and the
+consumer follows suit — clearing its employees, positions, audit trail, and dead
+letters so the dashboard always shows a small, fresh population instead of an
+unbounded backlog. It also occasionally emits a **stale event** (a comp or role
+change for someone who already left), which the processor correctly **rejects** —
+exactly the kind of late/duplicated message real feeds produce.
 
 ### The dashboard
 
@@ -166,7 +169,7 @@ the dashboard update live.
 ## Tests
 
 ```bash
-dotnet test          # C# unit + integration tests (33 passing)
+dotnet test          # C# unit + integration tests (37 passing)
 cd frontend && npm test   # Angular (Karma/Jasmine)
 ```
 
