@@ -28,10 +28,10 @@ dead-letter queue.
 ## What it does
 
 A mock **Oracle HCM Cloud** publishes an ATOM feed of workforce events — hires,
-promotions, comp changes, terminations. A .NET service polls the feed, transforms and
-validates each payload, queues it through a bounded `Channel<T>`, and applies it
-idempotently. A JWT-secured REST API exposes the data, and an Angular dashboard shows
-it live.
+transfers, promotions, pay changes, terminations, and the occasional rehire. A .NET
+service polls the feed, transforms and validates each payload, queues it through a
+bounded `Channel<T>`, and applies it idempotently. A JWT-secured REST API exposes the
+data, and an Angular dashboard shows it live.
 
 The feed is *not* a fixed script — it's a weighted-random stream that keeps evolving
 (people get promoted, paid more, leave, and new people join), so the pipeline is
@@ -47,6 +47,8 @@ feeds produce.
 - **Live KPIs** — pipeline health, headcount, active/terminated, departments.
 - **Employee table** — auto-refreshes as the feed publishes; search + per-column
   filters (department, status); click any row for its **change history**.
+- **Positions** — the job slots the feed assigns people to (job, grade, department,
+  location, supervisor), with search + department filter.
 - **Change history** — a per-employee audit trail showing each field's old → new value
   (hire → promotion → comp), so you can see *how* a record evolved.
 - **Integration audit log** — every event the pipeline applied *or rejected*, with
@@ -56,6 +58,10 @@ feeds produce.
 
 <p align="center">
   <img src="docs/screenshots/change-history.png" alt="Per-employee change history" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/positions.png" alt="Positions panel" width="100%">
 </p>
 
 <p align="center">
