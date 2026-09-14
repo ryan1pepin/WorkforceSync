@@ -1,5 +1,6 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { Observable, throwError } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
 import { AuthService } from './auth.service';
@@ -11,6 +12,7 @@ import { AuthService } from './auth.service';
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
+  const router = inject(Router);
 
   const token = auth.accessToken;
   const authorized = token
@@ -34,6 +36,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         }),
         catchError((refreshErr: HttpErrorResponse) => {
           auth.logout();
+          // Session is dead (e.g. the API restarted and invalidated all
+          // tokens) — send the user back to the login screen.
+          if (router.url !== '/login') {
+            router.navigateByUrl('/login');
+          }
           return throwError(() => refreshErr);
         })
       );

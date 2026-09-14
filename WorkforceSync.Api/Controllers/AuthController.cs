@@ -1,4 +1,8 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.JsonWebTokens;
 using WorkforceSync.Api.Auth;
 using WorkforceSync.Api.Dtos;
 using WorkforceSync.Api.Services;
@@ -51,6 +55,33 @@ public class AuthController : ControllerBase
         {
             return Problem(detail: ex.Message, statusCode: ex.StatusCode);
         }
+    }
+
+    /// <summary>
+    /// Returns the currently authenticated user. Lets the client validate a
+    /// stored session against the server (e.g. after a restart invalidates all
+    /// tokens) instead of trusting localStorage alone.
+    /// </summary>
+    [HttpGet("me")]
+    [Authorize]
+    [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Me(CancellationToken ct)
+    {
+        var sub = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        if (!int.TryParse(sub, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var user = await _auth.GetUserByIdAsync(userId, ct);
+        if (user is null)
+        {
+            return Unauthorized();
+        }
+
+        return Ok(new UserDto(user.Id, user.Email, user.FirstName, user.LastName, user.CreatedAtUtc));
     }
 
     /// <summary>Rotates a refresh token. Returns 200 with a new token pair.</summary>

@@ -137,6 +137,12 @@ public sealed class AuthService
         await RevokeFamilyAsync(stored.FamilyId, ct);
     }
 
+    /// <summary>Fetches a user by id (null if not found). Used by GET /auth/me.</summary>
+    public async Task<User?> GetUserByIdAsync(int id, CancellationToken ct)
+    {
+        return await _db.Users.FirstOrDefaultAsync(u => u.Id == id, ct);
+    }
+
     private async Task<AuthResponse> IssueTokenPairAsync(User user, CancellationToken ct)
     {
         var (refreshToken, refreshHash) = _tokens.CreateRefreshToken();

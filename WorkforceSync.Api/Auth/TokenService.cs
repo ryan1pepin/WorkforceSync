@@ -18,13 +18,11 @@ public sealed class TokenService
     private readonly string _audience;
     private readonly JsonWebTokenHandler _handler = new();
 
-    public TokenService(IConfiguration config)
+    public TokenService(string key, string issuer, string audience)
     {
-        var key = config["Jwt:Key"]
-            ?? throw new InvalidOperationException("Jwt:Key is not configured.");
         _signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
-        _issuer = config["Jwt:Issuer"] ?? "WorkforceSync";
-        _audience = config["Jwt:Audience"] ?? "WorkforceSync";
+        _issuer = issuer;
+        _audience = audience;
     }
 
     /// <summary>Creates a signed access token for the user (5-minute lifetime).</summary>

@@ -17,8 +17,14 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(connectionString));
 
 // --- Authentication (JWT Bearer) ---
-var jwtKey = builder.Configuration["Jwt:Key"]
-    ?? throw new InvalidOperationException("Jwt:Key is not configured.");
+// In Development, sign with a fresh random key per process so any token from a
+// previous run is invalid the moment the API restarts — every start forces a
+// fresh login (clean demo). In Production, use the configured key so sessions
+// persist across restarts.
+var jwtKey = builder.Environment.IsDevelopment()
+    ? Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32))
+    : builder.Configuration["Jwt:Key"]
+        ?? throw new InvalidOperationException("Jwt:Key is not configured.");
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "WorkforceSync";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "WorkforceSync";
 
@@ -41,7 +47,7 @@ builder.Services
 builder.Services.AddAuthorization();
 
 // --- Application services ---
-builder.Services.AddSingleton<TokenService>();
+builder.Services.AddSingleton(new TokenService(jwtKey, jwtIssuer, jwtAudience));
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddSingleton<IntegrationStatus>();
 
@@ -122,6 +128,20 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
+
+    // Force a fresh login on every start (dev): revoke all refresh-token
+    // families so a session from a previous run can't be silently refreshed.
+    // (The per-process signing key already invalidates old access tokens; this
+    // closes the refresh path.)
+    if (app.Environment.IsDevelopment())
+    {
+        var now = DateTime.UtcNow;
+        foreach (var t in db.RefreshTokens.ToList())
+        {
+            t.RevokedAtUtc = now;
+        }
+        db.SaveChanges();
+    }
 
     // Seed a demo user so the UI is usable out of the box (dev only).
     if (app.Environment.IsDevelopment() && !db.Users.Any())

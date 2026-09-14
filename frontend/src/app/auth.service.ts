@@ -1,7 +1,7 @@
 import { inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
-import { finalize, map } from 'rxjs/operators';
+import { Observable, of, throwError } from 'rxjs';
+import { catchError, finalize, map } from 'rxjs/operators';
 import { AuthResponse, User } from './models';
 
 const ACCESS_KEY = 'wfs.accessToken';
@@ -19,6 +19,38 @@ export class AuthService {
 
   readonly user = signal<User | null>(this.readUser());
   readonly isAuthenticated = signal<boolean>(!!this.readUser());
+
+  // Whether the stored session has been confirmed against the server this
+  // app-load. The route guard uses this so a stale localStorage session (e.g.
+  // from before an API restart) is bounced to login instead of trusted.
+  private serverSessionOk = false;
+
+  /**
+   * Validates the stored session against the server (GET /auth/me).
+   * Cached: once confirmed, later guard checks short-circuit. On failure the
+   * session is cleared and `false` is emitted so the guard redirects to login.
+   */
+  validateSession(): Observable<boolean> {
+    if (this.serverSessionOk) {
+      return of(true);
+    }
+    if (!this.accessToken) {
+      this.clearSession();
+      return of(false);
+    }
+    return this.http.get<User>('/auth/me').pipe(
+      map((u) => {
+        this.user.set(u);
+        this.serverSessionOk = true;
+        return true;
+      }),
+      catchError(() => {
+        this.serverSessionOk = false;
+        this.clearSession();
+        return of(false);
+      }),
+    );
+  }
 
   private readUser(): User | null {
     const raw = localStorage.getItem(USER_KEY);
@@ -95,6 +127,7 @@ export class AuthService {
     localStorage.setItem(USER_KEY, JSON.stringify(res.user));
     this.user.set(res.user);
     this.isAuthenticated.set(true);
+    this.serverSessionOk = true; // a fresh login is, by definition, valid
     return res.user;
   }
 
@@ -104,5 +137,6 @@ export class AuthService {
     localStorage.removeItem(USER_KEY);
     this.user.set(null);
     this.isAuthenticated.set(false);
+    this.serverSessionOk = false;
   }
 }
