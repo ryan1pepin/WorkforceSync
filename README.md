@@ -150,7 +150,16 @@ docker compose up --build
 # App: http://localhost:8080
 ```
 
-**Option B — run locally:**
+**Option B — run locally (one click):**
+
+```bat
+start.bat
+```
+
+Builds the backend, starts the API + mock HCM feed + Angular UI in three windows,
+waits for the UI, then opens `http://localhost:4200` in your browser.
+
+**Option C — run the pieces by hand:**
 
 ```bash
 # Backend
