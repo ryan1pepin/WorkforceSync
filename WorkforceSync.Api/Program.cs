@@ -65,7 +65,15 @@ if (ingestion.Enabled)
 }
 
 // --- MVC + JSON ---
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+{
+    // Client-abort guard: if the browser goes away mid-request (F5, navigation,
+    // closed tab), the request's CancellationToken fires and EF Core throws
+    // OperationCanceledException. Treat that as a normal "client closed request"
+    // (499) instead of an unhandled exception — it's not an error worth logging
+    // or breaking the debugger on.
+    options.Filters.Add(new ClientAbortFilter());
+})
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
@@ -191,3 +199,19 @@ if (Directory.Exists(frontendRoot))
 app.MapControllers();
 
 app.Run();
+
+/// <summary>
+/// Converts OperationCanceledException (client went away mid-request) into a
+/// 499 Client Closed Request so it never surfaces as an unhandled exception.
+/// </summary>
+public sealed class ClientAbortFilter : Microsoft.AspNetCore.Mvc.Filters.IExceptionFilter
+{
+    public void OnException(Microsoft.AspNetCore.Mvc.Filters.ExceptionContext context)
+    {
+        if (context.Exception is OperationCanceledException)
+        {
+            context.Result = new Microsoft.AspNetCore.Mvc.StatusCodeResult(499);
+            context.ExceptionHandled = true;
+        }
+    }
+}

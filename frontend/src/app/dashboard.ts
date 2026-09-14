@@ -92,6 +92,17 @@ import { AuditEntry, DeadLetter, Employee, EmployeeChange, Health, Metrics, Posi
       </nav>
 
       <main class="max-w-7xl mx-auto px-6 py-8 space-y-6">
+        @if (showApiDown()) {
+          <div class="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800 shadow-sm">
+            <span class="font-semibold">Can't reach the WorkforceSync API.</span>
+            Start the backend on <code class="font-mono">http://localhost:5140</code>, then refresh this page.
+          </div>
+        } @else if (showWaitingForData()) {
+          <div class="rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-800 shadow-sm">
+            <span class="font-semibold">Connected.</span>
+            Waiting for the first workforce events from the mock feed — the board fills in as they arrive.
+          </div>
+        }
         @if (tab() === 'overview') {
         <!-- Health + stats -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -566,6 +577,15 @@ export class Dashboard implements OnInit, OnDestroy {
   readonly deadLetters = signal<DeadLetter[]>([]);
   readonly positions = signal<Position[]>([]);
 
+  // API liveness: 'connecting' until the first health probe resolves.
+  // 'down' = backend unreachable (show a "start the API" banner instead of a
+  //         misleading zero board). 'up' = reachable (an empty board then just
+  //         means the mock feed hasn't emitted its first events yet).
+  readonly apiState = signal<'connecting' | 'up' | 'down'>('connecting');
+  readonly showApiDown = () => this.apiState() === 'down';
+  readonly showWaitingForData = () =>
+    this.apiState() === 'up' && this.employees().length === 0;
+
   // Active tab.
   readonly tab = signal<'overview' | 'workforce' | 'positions' | 'audit' | 'deadletter'>('overview');
   setTab(t: 'overview' | 'workforce' | 'positions' | 'audit' | 'deadletter'): void { this.tab.set(t); }
@@ -695,9 +715,12 @@ export class Dashboard implements OnInit, OnDestroy {
       },
     });
     this.workforce.health().subscribe({
-      next: (h) => this.health.set(h),
+      next: (h) => {
+        this.health.set(h);
+        this.apiState.set('up');
+      },
       error: () => {
-        /* ignore */
+        this.apiState.set('down');
       },
     });
     this.workforce.metrics().subscribe({
