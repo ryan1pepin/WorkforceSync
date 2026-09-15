@@ -6,7 +6,10 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Production
+      # Development mode is intentional for this self-contained demo container:
+      # it starts the in-process mock HCM feed, seeds the demo user, and enables
+      # Swagger. (The compose file already hardcodes a dev-only JWT key.)
+      - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__WorkforceSync=Data Source=/app/data/workforcesync.db
       - Jwt__Key=dev-only-change-me-9f8e7d6c5b4a39281706f5e4d3c2b1a09f8e7d6c5b4a3928
       - Ingestion__Enabled=true
