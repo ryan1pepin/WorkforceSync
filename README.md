@@ -35,8 +35,8 @@ data, and an Angular dashboard shows it live.
 
 The feed is *not* a fixed script — it's a weighted-random stream that keeps evolving
 (people get promoted, paid more, leave, and new people join), so the pipeline is
-exercised against a realistic, varied workload. It runs in **bounded cycles** (5
-minutes by default): when a cycle elapses the feed clears and starts over, and the
+exercised against a realistic, varied workload. It runs in **bounded cycles** (1
+hour by default): when a cycle elapses the feed clears and starts over, and the
 consumer follows suit — clearing its employees, positions, audit trail, and dead
 letters so the dashboard always shows a small, fresh population instead of an
 unbounded backlog. It also occasionally emits a **stale event** (a comp or role
