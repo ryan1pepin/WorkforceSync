@@ -14,6 +14,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const router = inject(Router);
 
+  // The refresh endpoint must NOT be subject to its own 401 handling — a
+  // failed refresh re-entering refresh() would loop (the in-flight dedup
+  // returns the same observable) and hang instead of logging out.
+  const isRefresh = req.url.includes('/auth/refresh');
+
   const token = auth.accessToken;
   const authorized = token
     ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
@@ -21,7 +26,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authorized).pipe(
     catchError((err: HttpErrorResponse) => {
-      if (err.status !== 401 || !auth.refreshToken) {
+      if (err.status !== 401 || isRefresh || !auth.refreshToken) {
         return throwError(() => err);
       }
       return auth.refresh().pipe(

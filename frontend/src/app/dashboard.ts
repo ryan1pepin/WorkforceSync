@@ -670,6 +670,7 @@ export class Dashboard implements OnInit, OnDestroy {
     this.deadLetters().filter((d) => d.status === 'Pending').length;
 
   private timer: ReturnType<typeof setInterval> | null = null;
+  private refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Previous-state tracking (used to detect new/changed rows between refreshes).
   private prevAuditIds = new Set<number>();
@@ -685,6 +686,9 @@ export class Dashboard implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     if (this.timer) {
       clearInterval(this.timer);
+    }
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
     }
   }
 
@@ -757,8 +761,23 @@ export class Dashboard implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Debounce the server round-trip for free-text search: coalesce rapid
+   * keystrokes into a single refresh 300ms after the last one. The signal is
+   * updated immediately (so the input stays in sync); only the HTTP call waits.
+   */
+  private debouncedRefresh(): void {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+    }
+    this.refreshTimer = setTimeout(() => {
+      this.refreshTimer = null;
+      this.refresh();
+    }, 300);
+  }
+
   // ── Employee table filters ────────────────────────────────────────────────
-  onEmpSearch(v: string): void { this.empSearch.set(v); this.refresh(); }
+  onEmpSearch(v: string): void { this.empSearch.set(v); this.debouncedRefresh(); }
   onEmpDepartment(v: string): void { this.empDepartment.set(v); this.refresh(); }
   onEmpStatus(v: string): void { this.empStatus.set(v); this.refresh(); }
   clearEmpFilters(): void {
@@ -776,7 +795,7 @@ export class Dashboard implements OnInit, OnDestroy {
   // ── Audit table filters ───────────────────────────────────────────────────
   onAuditStatus(v: string): void { this.auditStatus.set(v); this.refresh(); }
   onAuditType(v: string): void { this.auditType.set(v); this.refresh(); }
-  onAuditSearch(v: string): void { this.auditSearch.set(v); this.refresh(); }
+  onAuditSearch(v: string): void { this.auditSearch.set(v); this.debouncedRefresh(); }
   clearAuditFilters(): void {
     this.auditStatus.set(''); this.auditType.set(''); this.auditSearch.set('');
     this.refresh();
