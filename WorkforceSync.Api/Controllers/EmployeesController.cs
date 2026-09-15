@@ -59,12 +59,18 @@ public class EmployeesController : ControllerBase
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var s = search.Trim();
-            query = query.Where(e =>
-                e.FirstName.Contains(s) ||
-                e.LastName.Contains(s) ||
-                e.Email.Contains(s) ||
-                e.JobTitle.Contains(s));
+            // Multi-word search: every term must match one of the fields,
+            // so "Leslie He" finds the person rather than requiring a
+            // single field to contain the whole phrase.
+            var terms = search.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var t in terms)
+            {
+                query = query.Where(e =>
+                    e.FirstName.Contains(t) ||
+                    e.LastName.Contains(t) ||
+                    e.Email.Contains(t) ||
+                    e.JobTitle.Contains(t));
+            }
         }
 
         var totalCount = await query.CountAsync(ct);
