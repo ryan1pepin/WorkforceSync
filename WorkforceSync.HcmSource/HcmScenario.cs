@@ -243,14 +243,18 @@ public sealed class HcmScenario
 
     private void EmitPromotion(DateTime now)
     {
-        var e = Pick(_roster);
-        if (e.Level >= MaxLevel)
+        // Promotions only apply to regular employees — a contractor's
+        // assignment ends with the contract, so they get pay adjustments
+        // instead of a level bump.
+        var eligible = _roster.Where(e => e.EmploymentType == "Regular" && e.Level < MaxLevel).ToList();
+        if (eligible.Count == 0)
         {
-            // Already at the top — a promotion becomes a pay bump instead.
+            // No one promotable — a promotion becomes a pay bump instead.
             EmitPayChange(now);
             return;
         }
 
+        var e = eligible[_rng.Next(eligible.Count)];
         e.Level++;
         e.JobTitle = TitleFor(e.Department, e.Level);
         e.PositionId = $"pos-{100 + _eventCounter}";
