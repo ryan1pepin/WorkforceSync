@@ -1,12 +1,9 @@
 # See https://aka.ms/customizecontainer to learn how to customize your debug container and how Visual Studio uses this Dockerfile to build your images for faster debugging.
 
-# ---- Stage 0: build the Angular app (so the API can serve the UI) ----
-FROM node:22-alpine AS frontend
-WORKDIR /src/frontend
-COPY frontend/package*.json ./
-RUN npm ci
-COPY frontend/ ./
-RUN npm run build
+# Stage order matters: VS fast mode (Debug) uses the FIRST stage as the
+# runnable image, VS regular mode (Release) and plain `docker build` use the
+# LAST stage. So `base` must stay first and `final` must stay last. The
+# `frontend` stage sits in the middle — it only feeds `build` via --from.
 
 # This stage is used when running from VS in fast mode (Default for Debug configuration)
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
@@ -15,6 +12,14 @@ WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
 
+
+# Build the Angular app (so the API can serve the UI).
+FROM node:22-alpine AS frontend
+WORKDIR /src/frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
 
 # This stage is used to build the service project
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
