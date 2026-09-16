@@ -4,6 +4,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>9c037f1d-de19-4a9c-b0a7-3a9e291f545f</UserSecretsId>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <DockerComposeProjectPath>..\docker-compose.dcproj</DockerComposeProjectPath>
   </PropertyGroup>
 
   <ItemGroup>
@@ -11,6 +14,7 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
     <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.22.0" />
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.24.2-preview.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
   </ItemGroup>
 
@@ -20,9 +24,9 @@
   </ItemGroup>
 
   <!-- Copy the built Angular app into wwwroot so the API can serve it standalone. -->
-  <Target Name="CopyFrontend" AfterTargets="Build" Condition="Exists('..\frontend\dist\frontend')">
+  <Target Name="CopyFrontend" AfterTargets="Build" Condition="Exists('..\frontend\dist\frontend\browser')">
     <ItemGroup>
-      <FrontendFiles Include="..\frontend\dist\frontend\**\*" />
+      <FrontendFiles Include="..\frontend\dist\frontend\browser\**\*" />
     </ItemGroup>
     <Copy SourceFiles="@(FrontendFiles)" DestinationFolder="wwwroot\%(RecursiveDir)" SkipUnchangedFiles="true" />
   </Target>
