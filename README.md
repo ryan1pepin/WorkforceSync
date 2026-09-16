@@ -18,7 +18,7 @@ Built with C# and Angular to work through the integration patterns I use in prod
 A ~45-second walkthrough: sign in, watch the live feed land events, drill into an
 employee's change history, then tour the positions, audit log, and dead-letter queue.
 
-<video src="docs/WorkforceSync-Demo.mp4" controls width="100%"></video>
+[▶ Watch the demo (45s)](docs/WorkforceSync-Demo.mp4)
 
 <p align="center">
   <img src="docs/screenshots/dashboard.png" alt="WorkforceSync dashboard" width="100%">
