@@ -18,7 +18,7 @@ Built with C# and Angular to work through the integration patterns I use in prod
 A ~45-second walkthrough: sign in, watch the live feed land events, drill into an
 employee's change history, then tour the positions, audit log, and dead-letter queue.
 
-[▶ Watch the demo (45s)](docs/WorkforceSync-Demo.mp4)
+[▶ Watch the demo (45s)](https://private-user-images.githubusercontent.com/14218000/653379439-0a510b1d-e4a3-49fe-9a57-9db30dc6de63.mp4?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3ODk2MDA1MDYsIm5iZiI6MTc4OTYwMDIwNiwicGF0aCI6Ii8xNDIxODAwMC82NTMzNzk0MzktMGE1MTBiMWQtZTRhMy00OWZlLTlhNTctOWRiMzBkYzZkZTYzLm1wND9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNjA5MTYlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjYwOTE2VDIzMTAwNlomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTlkOTFjZDU3YmRlMjZkZjdhZTY4ODYzZDc1M2NlODI2ZGEwNWM2ZTUwYjllYjZkODVlODA5NDU4OTg1NGY5NDQmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JnJlc3BvbnNlLWNvbnRlbnQtdHlwZT12aWRlbyUyRm1wNCJ9.QN0d1melOHPo6U1tBoN1PFuNmaov3R95IJa-D5MIQFA)
 
 <p align="center">
   <img src="docs/screenshots/dashboard.png" alt="WorkforceSync dashboard" width="100%">
