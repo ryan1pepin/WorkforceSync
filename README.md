@@ -15,9 +15,8 @@ Built with C# and Angular to work through the integration patterns I use in prod
 
 ## Demo
 
-A ~50-second walkthrough: sign in, watch the live feed land events, drill into an
-employee's change history, see the pipeline reject a bad one, and replay it from the
-dead-letter queue.
+A ~45-second walkthrough: sign in, watch the live feed land events, drill into an
+employee's change history, then tour the positions, audit log, and dead-letter queue.
 
 <video src="docs/WorkforceSync-Demo.mp4" controls width="100%"></video>
 

@@ -272,20 +272,6 @@ import { AuditEntry, DeadLetter, Employee, EmployeeChange, Health, Metrics, Posi
                   @if (expandedId() === e.employeeId) {
                     <tr class="bg-slate-50/60">
                       <td colspan="12" class="px-6 py-4">
-                        <!-- Employee summary above the change history -->
-                        <div class="flex items-center gap-4 mb-4 p-4 bg-white rounded-xl border border-slate-100 shadow-sm">
-                          <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-md shadow-blue-900/20">
-                            {{ e.firstName | slice:0:1 }}{{ e.lastName | slice:0:1 }}
-                          </div>
-                          <div class="flex-1 min-w-0">
-                            <div class="font-semibold text-slate-800">{{ e.firstName }} {{ e.lastName }}</div>
-                            <div class="text-sm text-slate-500 truncate">{{ e.jobTitle }} · {{ e.department }} · {{ e.grade }}</div>
-                          </div>
-                          <div class="text-right shrink-0">
-                            <div class="text-sm font-semibold text-slate-800">{{ e.baseSalary | number }} <span class="text-xs text-slate-400 font-normal">{{ e.currency }}</span></div>
-                            <div class="text-xs text-slate-400">{{ e.workLocation ?? '—' }}</div>
-                          </div>
-                        </div>
                         <div class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
                           Change history
                         </div>
