@@ -6,7 +6,7 @@ systems): ATOM feed ingestion, data transformation & validation, message queuing
 backpressure, idempotent processing, a dead-letter queue with replay, JWT-secured REST
 APIs, and a live Angular dashboard.
 
-Built with C# and Angular to work through the integration patterns I use in production
+Built with C# and Angular in order to skill up in Angular.
 — ATOM feeds, OAuth/JWT, message queuing, and middleware — end to end.
 
 ![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet)
